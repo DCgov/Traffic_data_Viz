@@ -1,6 +1,5 @@
-traffic_dashboard
-=================
-The traffic dashboard helps to develop gather traffic information from various sources like CCTV, traffic sensors and show it in one place 
-on the monitors in front of decision makers. The dash board also provides smooth transistion from one CCTV to other which are pre chosen
+Traffic Vizualizataion 
 
-Please visit back for more details 
+The application will develop codes for developing new data vizulaizations for viewing traffic data. The project is currently developed under DDOT and is available for any one to use 
+
+More information will posted as the project develops 
