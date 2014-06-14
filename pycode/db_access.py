@@ -11,11 +11,19 @@ import xml.etree.cElementTree as ET
 import datetime
 
 # Hard coding area
-DBserver = '(local)'
-database = 'snaps'
 CorridorFile = 'corridors.txt'
-tblname = 'snaps_aggr_records'
+db_setting_path = 'E:/GitREPOs/dbsettings.json'
 # -----------------
+
+def load_dbsetting_file(fpath):
+    """
+    return db settings DBServer, DBname, UID, PWD, TABLENAME
+    """
+    f = open(fpath, 'r')
+    import json
+    dct = json.load(f)
+    f.close()
+    return dct["DBServer"], dct["DBName"], dct["UID"], dct["PWD"], dct["TABLENAME"]
 
 def load_corridors():
     cor_data = {}
@@ -28,7 +36,7 @@ def load_corridors():
         acisa_range = l[2].strip()
         intersections = [t.strip() for t in l[3].split(',')]
         cor_data[cid] = {'name': name, 'acisa_range': acisa_range, 'intersections': intersections}
-        
+    f.close()    
     return cor_data
 
 def query_by_corridor_group(corridor_id, start_date, end_date, output_format='csv'):
@@ -55,10 +63,11 @@ def query_by_corridor_group(corridor_id, start_date, end_date, output_format='cs
     # get corridor ACISA list
     cor_data = load_corridors()
     corr_acisas = ','.join('\'' + t + '\'' for t in cor_data[str(corridor_id)]['intersections'])
-    
-    # read corridor data
+        
+    # query data
+    DBserver, DBname, UID, PWD, tblname = load_dbsetting_file(db_setting_path)
     connStr = ( r'DRIVER={SQL Server};SERVER=' +
-            DBserver + ';DATABASE=' + database + ';' +
+            DBserver + ';DATABASE=' + DBname + ';' +
             'UID=' + UID + ';PWD=' + PWD)
         
     conn = pyodbc.connect(connStr)    
