@@ -1,47 +1,75 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
-<style>
+<head>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <script src="http://d3js.org/d3.v3.min.js"></script>
+    <style>
 
-body {
-	  font: 12px sans-serif;
-}
+    body {
+          font: 12px sans-serif;
+    }
 
-.axis path,
-.axis line {
-	fill: none;
-	stroke: grey;
-	shape-rendering: crispEdges;
-}
+    .axis path,
+    .axis line {
+        fill: none;
+        stroke: grey;
+        shape-rendering: crispEdges;
+    }
 
-.dot {
-	stroke: none;
-	fill: steelblue;
-}
+    .dot {
+        stroke: none;
+        fill: steelblue;
+    }
 
-.grid .tick {
-	stroke: lightgrey;
-	opacity: 0.7;
-}
-.grid path {
-	stroke-width: 0;
-}
+    .grid .tick {
+        stroke: lightgrey;
+        opacity: 0.7;
+    }
+    .grid path {
+        stroke-width: 0;
+    }
 
-div.tooltip {
-	position: absolute;
-	text-align: center;
-	width: 80px;
-	height: 42px;
-	padding: 2px;
-	font: 12px sans-serif;
-	background: #ddd;
-	border: solid 0px #aaa;
-	border-radius: 8px;
-	pointer-events: none;
-}
+    div.tooltip {
+        position: absolute;
+        text-align: center;
+        width: 80px;
+        height: 42px;
+        padding: 2px;
+        font: 12px sans-serif;
+        background: #ddd;
+        border: solid 0px #aaa;
+        border-radius: 8px;
+        pointer-events: none;
+    }
 
-</style>
+    </style>
+</head>
 <body>
-<script src="http://d3js.org/d3.v3.min.js"></script>
+
+<form>
+    <div id="cbox"></div>
+    Start_Date <i>(YYYY-MM-DD)</i>: <input type="text" id="startdate" value="2013-10-01">
+    End_Date <i>(YYYY-MM-DD)</i>: <input type="text" id="enddate" value="2013-11-30">
+    <input type="button" value="Generate" onclick="generate()">
+</form>
+
+<p><i>This visualization takes a few seconds to process. The newest figure will be appended at the end of page.</i></p>
+<hr>
+
+<script>
+    $.getJSON("http://localhost:10808/dataviz/datavizcgi.py?method=getcorridor", function(data){
+        htmlstr = "Corridor/Intersection: ";
+        htmlstr += "<select id=\"target\">"
+        $.each( data, function( k, v ) {
+            htmlstr += "<option value=\"" + k + "\">" + v['name'] + "</option>";
+            for(acisa in v['intersections']){
+                htmlstr += "<option value=\"#" + v['intersections'][acisa] + "\"> # " + v['intersections'][acisa] + "</option>";
+            }
+        });
+        htmlstr += "</select>"
+        $("#cbox").html(htmlstr);
+    });
+</script>
 
 <script>
 
@@ -69,7 +97,6 @@ var yAxis = d3.svg.axis()
     .ticks(24);
 
 
-
 // State the functions for the grid
 function make_x_axis() {
   return d3.svg.axis()
@@ -79,102 +106,126 @@ function make_x_axis() {
 }
 
 // Get the data
-d3.csv("test.csv", function(error, data) {
 
-  dlist = {};
-  nkeys = 0;
-  data.forEach(function(d) {
-	d.week_year = parseWeek_Year(d.week_year);
-	d.day_time = parseDay_Time(d.day_time);
-    //d.value = +d.value;
-    d.value = + d.vol;
-	if(!(d.lanedr in dlist)){
-		dlist[d.lanedr] = [];
-		nkeys++;
-	}
-	dlist[d.lanedr].push(d);
-  });  
+function generate() {
+    var querystr;
+    var coi = $("#target").val();
+    var coiname = $("#target option:selected").text();
+    var stdate = $("#startdate").val();
+    var eddate = $("#enddate").val();
 
-	// Set the domains
-	x.domain([new Date(1900, 00, 07, 0, 0, 0), new Date(1900, 00, 13, 23, 59, 59)]);
-  //y.domain([new Date(2010, 05, 29, 0, 0, 0), new Date(2012, 07, 29, 23, 59, 59)]);
-  //x.domain([new Date(2013, 10, 1, 0, 0, 0), new Date(2013, 10, 30, 23, 59, 59)]);
-	y.domain(d3.extent(data, function(d) { return d.week_year; }));
-	// tickSize: Get or set the size of major, minor and end ticks
-	
-	for(var key in dlist){
-		var svg = d3.select("body")
-		.append("svg")
-			.attr("width", width + margin.left + margin.right)
-			.attr("height", height + margin.top + margin.bottom)
-		.append("g")
-			.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-			
-		svg.append("g").classed("grid x_grid", true)
-			.attr("transform", "translate(0," + height + ")")
-			.style("stroke-dasharray", ("3, 3, 3"))
-			.call(make_x_axis()
-				.tickSize(-height, 0, 0)
-				.tickFormat("")
-			)
-		// Draw the Axes and the tick labels
-		svg.append("g")
-			.attr("class", "x axis")
-			.attr("transform", "translate(0," + height + ")")
-			.call(xAxis)
-		.selectAll("text")
-			.attr("dx", 35)
-			.attr("dy", 5)
-			.style("text-anchor", "middle");
+    if(coi.indexOf("#") == 0) {
+        querystr = "http://localhost:10808/dataviz/datavizcgi.py?method=query_by_acisa&acisa=" + coi.substring(1) + "&start_date=" + stdate + "&end_date=" + eddate;
+    }
+    else{
+        querystr = "http://localhost:10808/dataviz/datavizcgi.py?method=query_by_corridor_group&corridor_id=" + coi + "&start_date=" + stdate + "&end_date=" + eddate;
+    }
+    d3.csv(querystr, function (error, data) {
 
-		svg.append("g")
-			.attr("class", "y axis")
-			.call(yAxis)
-		.selectAll("text")
-			.attr("dx", 2)
-			.attr("dy", 22)
-			.style("text-anchor", "end");
+        dlist = {};
+        nkeys = 0;
+        data.forEach(function (d) {
+            d.week_year = parseWeek_Year(d.week_year);
+            d.day_time = parseDay_Time(d.day_time);
+            //d.value = +d.value;
+            d.value = +d.vol;
+            if (!(d.lanedr in dlist)) {
+                dlist[d.lanedr] = [];
+                nkeys++;
+            }
+            dlist[d.lanedr].push(d);
+        });
 
-		// Tooltip stuff
-		var div = d3.select("body").append("div")
-			.attr("class", "tooltip")
-			.style("opacity", 1e-6);
+        // Set the domains
+        x.domain([new Date(1900, 00, 07, 0, 0, 0), new Date(1900, 00, 13, 23, 59, 59)]);
+        //y.domain([new Date(2010, 05, 29, 0, 0, 0), new Date(2012, 07, 29, 23, 59, 59)]);
+        //x.domain([new Date(2013, 10, 1, 0, 0, 0), new Date(2013, 10, 30, 23, 59, 59)]);
+        y.domain(d3.extent(data, function (d) {
+            return d.week_year;
+        }));
+        // tickSize: Get or set the size of major, minor and end ticks
 
-		// draw the plotted circles
-		svg.selectAll(".dot")
-			.data(dlist[key])
-		.enter().append("circle")
-			.attr("class", "dot")
-			.attr("r", function(d) { return ((d.value / 500)); })
-			.style("opacity", 0.13)
-			.attr("cx", function(d) { return x(d.day_time); })
-			.attr("cy", function(d) { return y(d.week_year); })
-		// Tooltip stuff after this
-			.on("mouseover", function(d) {
-				div.transition()
-					.duration(200)
-					.style("opacity", .7);
-				div	.html(
-						formatDay_Time(d.day_time) + "<br/>"  + 
-						formatWeek_Year(d.week_year) + "<br/> Volume:"  +
-						d.value)	
-					.style("left", (d3.event.pageX) + "px")
-					.style("top", (d3.event.pageY - 42) + "px");
-				})	
-			.on("mouseout", function(d) {
-				div.transition()
-					.duration(500)
-					.style("opacity", 1e-6);
-			});	
+        for (var key in dlist) {
+            var svg = d3.select("body")
+                    .append("svg")
+                    .attr("width", width + margin.left + margin.right)
+                    .attr("height", height + margin.top + margin.bottom)
+                    .append("g")
+                    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-		// Add the title
-		svg.append("text")
-			.attr("x", (width / 2))				
-			.attr("y", 0 - (margin.top / 2))	
-			.attr("text-anchor", "middle")		
-			.style("font-size", "18px") 		
-			.text("Direction: " + key);	
-	}
-});
+            svg.append("g").classed("grid x_grid", true)
+                    .attr("transform", "translate(0," + height + ")")
+                    .style("stroke-dasharray", ("3, 3, 3"))
+                    .call(make_x_axis()
+                            .tickSize(-height, 0, 0)
+                            .tickFormat("")
+            )
+            // Draw the Axes and the tick labels
+            svg.append("g")
+                    .attr("class", "x axis")
+                    .attr("transform", "translate(0," + height + ")")
+                    .call(xAxis)
+                    .selectAll("text")
+                    .attr("dx", 35)
+                    .attr("dy", 5)
+                    .style("text-anchor", "middle");
+
+            svg.append("g")
+                    .attr("class", "y axis")
+                    .call(yAxis)
+                    .selectAll("text")
+                    .attr("dx", 2)
+                    .attr("dy", 22)
+                    .style("text-anchor", "end");
+
+            // Tooltip stuff
+            var div = d3.select("body").append("div")
+                    .attr("class", "tooltip")
+                    .style("opacity", 1e-6);
+
+            // draw the plotted circles
+            svg.selectAll(".dot")
+                    .data(dlist[key])
+                    .enter().append("circle")
+                    .attr("class", "dot")
+                    .attr("r", function (d) {
+                        return ((d.value / 500));
+                    })
+                    .style("opacity", 0.13)
+                    .attr("cx", function (d) {
+                        return x(d.day_time);
+                    })
+                    .attr("cy", function (d) {
+                        return y(d.week_year);
+                    })
+                // Tooltip stuff after this
+                    .on("mouseover", function (d) {
+                        div.transition()
+                                .duration(200)
+                                .style("opacity", .7);
+                        div.html(
+                                        formatDay_Time(d.day_time) + "<br/>" +
+                                        formatWeek_Year(d.week_year) + "<br/> Volume:" +
+                                        d.value)
+                                .style("left", (d3.event.pageX) + "px")
+                                .style("top", (d3.event.pageY - 42) + "px");
+                    })
+                    .on("mouseout", function (d) {
+                        div.transition()
+                                .duration(500)
+                                .style("opacity", 1e-6);
+                    });
+
+            // Add the title
+            svg.append("text")
+                    .attr("x", (width / 2))
+                    .attr("y", 0 - (margin.top / 2))
+                    .attr("text-anchor", "middle")
+                    .style("font-size", "18px")
+                    .text(coiname + " - Direction: " + key);
+        }
+        $("body").append("<hr>");
+    });
+}
 
 </script>

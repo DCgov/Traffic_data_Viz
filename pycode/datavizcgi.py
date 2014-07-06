@@ -4,9 +4,10 @@ import db_access
 import cgi, cgitb
 
 '''
-example:
+examples:
 http://localhost:10808/dataviz/datavizcgi.py?method=query_by_corridor_group&corridor_id=1&start_date=2013-10-01&end_date=2013-10-31
 http://localhost:10808/dataviz/datavizcgi.py?method=query_by_acisa&acisa=2135&start_date=2013-10-01&end_date=2013-10-31
+http://localhost:10808/dataviz/datavizcgi.py?method=getcorridor
 
 '''
 
@@ -39,6 +40,9 @@ elif method == 'query_by_corridor_group':
         print db_access.query_by_corridor_group(corridor_id, start_date, end_date)
     else:
         print db_access.query_by_corridor_group(corridor_id, start_date, end_date, output_format)
+
+elif method == 'getcorridor':
+    print db_access.getcorridor()
 
 else:
     print 'No request defined'

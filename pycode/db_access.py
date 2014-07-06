@@ -10,6 +10,7 @@ import pyodbc
 import xml.etree.cElementTree as ET
 import datetime
 import os
+import json
 
 # Hard coding area
 CorridorFile = 'corridors.txt'
@@ -24,7 +25,6 @@ def load_dbsetting_file(fpath):
     return db settings DBServer, DBname, UID, PWD, TABLENAME
     """
     f = open(fpath, 'r')
-    import json
     dct = json.load(f)
     f.close()
     return dct["DBServer"], dct["DBName"], dct["UID"], dct["PWD"], dct["TABLENAME"]
@@ -180,6 +180,10 @@ def query_by_acisa(acisa, start_date, end_date, output_format='csv'):
                 text.append("%s,%s,%s,%s,%s" % (v0['datetime'].strftime("%Y-%m-%d"), wday.strftime("%Y-%m-%d %H:%M:%S"), str(v0['speed']), str(v0['vol']), kk))
         outtext = '\n'.join(t for t in text)
         return outtext
+
+def getcorridor():
+    cor_data = load_corridors()
+    return json.dumps(cor_data)
 
 # testing command
 #print query_by_corridor_group('1', '2013-10-01', '2013-10-31')
