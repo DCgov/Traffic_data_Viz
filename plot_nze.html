@@ -113,12 +113,14 @@ function generate() {
     var coiname = $("#target option:selected").text();
     var stdate = $("#startdate").val();
     var eddate = $("#enddate").val();
-
+    var iscorridor = false;
     if(coi.indexOf("#") == 0) {
         querystr = "http://localhost:10808/dataviz/datavizcgi.py?method=query_by_acisa&acisa=" + coi.substring(1) + "&start_date=" + stdate + "&end_date=" + eddate;
+        iscorridor = false;
     }
     else{
         querystr = "http://localhost:10808/dataviz/datavizcgi.py?method=query_by_corridor_group&corridor_id=" + coi + "&start_date=" + stdate + "&end_date=" + eddate;
+        iscorridor = true;
     }
     d3.csv(querystr, function (error, data) {
 
@@ -189,7 +191,12 @@ function generate() {
                     .enter().append("circle")
                     .attr("class", "dot")
                     .attr("r", function (d) {
-                        return ((d.value / 500));
+                        if(iscorridor == true) {
+                            return ((d.value / 500));
+                        }
+                        else{
+                            return (d.value >1000?20:(d.value / 50));
+                        }
                     })
                     .style("opacity", 0.13)
                     .attr("cx", function (d) {
