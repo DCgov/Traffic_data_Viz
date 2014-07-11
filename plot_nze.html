@@ -115,11 +115,11 @@ function generate() {
     var eddate = $("#enddate").val();
     var iscorridor = false;
     if(coi.indexOf("#") == 0) {
-        querystr = "http://10.41.20.61:10808/dataviz/datavizcgi.py?method=query_by_acisa&acisa=" + coi.substring(1) + "&start_date=" + stdate + "&end_date=" + eddate;
+        querystr = "http://10.41.20.61:10808/dataviz/datavizcgi.py?method=query_by_acisa&target_plot=NZE&acisa=" + coi.substring(1) + "&start_date=" + stdate + "&end_date=" + eddate;
         iscorridor = false;
     }
     else{
-        querystr = "http://10.41.20.61:10808/dataviz/datavizcgi.py?method=query_by_corridor_group&corridor_id=" + coi + "&start_date=" + stdate + "&end_date=" + eddate;
+        querystr = "http://10.41.20.61:10808/dataviz/datavizcgi.py?method=query_by_corridor_group&target_plot=NZE&corridor_id=" + coi + "&start_date=" + stdate + "&end_date=" + eddate;
         iscorridor = true;
     }
     d3.csv(querystr, function (error, data) {

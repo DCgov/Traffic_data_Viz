@@ -23,6 +23,7 @@ db_setting_path = os.path.join(folder, db_setting_path)
 def load_dbsetting_file(fpath):
     """
     return db settings DBServer, DBname, UID, PWD, TABLENAME
+    :param fpath: dbsetting file path
     """
     f = open(fpath, 'r')
     dct = json.load(f)
@@ -30,6 +31,10 @@ def load_dbsetting_file(fpath):
     return dct["DBServer"], dct["DBName"], dct["UID"], dct["PWD"], dct["TABLENAME"]
 
 def load_corridors():
+    """
+    load the CorridorFile and returns the dict structure
+    {corridorID: {'name':name, 'acisa_range':acisa_range, 'intersections': the list of acisa # corresponding to the corridor}}
+    """
     cor_data = {}
     f = open(CorridorFile,'r')
     lines = f.readlines()
@@ -43,14 +48,12 @@ def load_corridors():
     f.close()    
     return cor_data
 
-def query_by_corridor_group(corridor_id, start_date, end_date, output_format='csv'):
+def query_by_corridor_group(corridor_id, start_date, end_date, output_format='csv', target_plot='NZE'):
     """
-    for generating "New Zealand Earthquakes" plot    
-    http://bl.ocks.org/d3noob/4425979
     
     returns the aggregated value
 
-    corridor_id:
+    :param corridor_id:
         1:NY AVE
         2:CT AVE
         3:14TH ST
@@ -58,11 +61,17 @@ def query_by_corridor_group(corridor_id, start_date, end_date, output_format='cs
         5:Reservoir - MacArthur
         6:H st - Bening Rd        
 
-    start_date, end_date:
+    :param start_date, end_date:
         YYYY-MM-DD        
 
-    output_format:
+    :param output_format:
         'csv', 'xml'
+    :param target_plot:
+        'NZE': for generating "New Zealand Earthquakes" plot
+                http://bl.ocks.org/d3noob/4425979
+
+        'TVV': for generating "Time vs. Volume" plot
+
     """
     # get corridor ACISA list
     cor_data = load_corridors()
@@ -91,40 +100,31 @@ def query_by_corridor_group(corridor_id, start_date, end_date, output_format='cs
 #        (dt, acisa, lanedr, vol, avgspd) = tuple(row[0:6])
 #        print  dt, acisa, lanedr, vol, avgspd
         (dt, lanedr, vol, avgspd) = tuple(row[0:4])
-        if(not info.has_key(lanedr)):
+        if not info.has_key(lanedr):
             info[lanedr] = []
         info[lanedr].append({'datetime': dt,'speed': avgspd, 'vol': vol})
 #        print  dt, lanedr, vol, avgspd
-        
-    if(output_format == 'xml'):
-        # construct XML
-        root = ET.Element("items")
-        for k, v in info.items():
-            lanedr = ET.SubElement(root, "lanedr")
-            lanedr.set('direction', k.strip())
-            for v0 in v:
-                item = ET.SubElement(lanedr, "item")
-                item.set("datetime", v0['datetime'].strftime("%Y-%m-%d %H:%M:%S"))
-                item.set("speed", str(v0['speed']))
-                item.set("vol", str(v0['vol']))
-           
-        tree = ET.ElementTree(root)
-    #    tree.write("test.xml") # write to a temporary file
-        return ET.dump(tree) # return an XML string
-        
-    elif(output_format == 'csv'):        
-        # construct csv
-        text = ["week_year,day_time,speed,vol,lanedr"]
-        for k, v in info.items():            
-            kk = k.strip()
-            for v0 in v:
-                wday = datetime.datetime(1900,1,7, v0['datetime'].hour, v0['datetime'].minute, v0['datetime'].second) + datetime.timedelta( (v0['datetime'].weekday() + 1) % 7  ,0)
-                text.append("%s,%s,%s,%s,%s" % (v0['datetime'].strftime("%Y-%m-%d"), wday.strftime("%Y-%m-%d %H:%M:%S"), str(v0['speed']), str(v0['vol']), kk))
-        outtext = '\n'.join(t for t in text)
-        return outtext
+
+    outtext = generate_outtext(info, output_format, target_plot)
+    return outtext
 
 
-def query_by_acisa(acisa, start_date, end_date, output_format='csv'):
+def query_by_acisa(acisa, start_date, end_date, output_format='csv', target_plot='NZE'):
+    """
+    for generating "New Zealand Earthquakes" plot
+    http://bl.ocks.org/d3noob/4425979
+
+    returns the aggregated value
+
+    :param acisa:
+        the acisa # of the intersection
+
+    :param start_date, end_date:
+        YYYY-MM-DD
+
+    :param output_format:
+        'csv', 'xml'
+    """
     # query data
     DBserver, DBname, UID, PWD, tblname = load_dbsetting_file(db_setting_path)
     connStr = ( r'DRIVER={SQL Server};SERVER=' +
@@ -149,41 +149,111 @@ def query_by_acisa(acisa, start_date, end_date, output_format='csv'):
 #        (dt, acisa, lanedr, vol, avgspd) = tuple(row[0:6])
 #        print  dt, acisa, lanedr, vol, avgspd
         (dt, lanedr, vol, avgspd) = tuple(row[0:4])
-        if(not info.has_key(lanedr)):
+        if not info.has_key(lanedr):
             info[lanedr] = []
         info[lanedr].append({'datetime': dt,'speed': avgspd, 'vol': vol})
 #        print  dt, lanedr, vol, avgspd
 
-    if(output_format == 'xml'):
-        # construct XML
-        root = ET.Element("items")
-        for k, v in info.items():
-            lanedr = ET.SubElement(root, "lanedr")
-            lanedr.set('direction', k.strip())
-            for v0 in v:
-                item = ET.SubElement(lanedr, "item")
-                item.set("datetime", v0['datetime'].strftime("%Y-%m-%d %H:%M:%S"))
-                item.set("speed", str(v0['speed']))
-                item.set("vol", str(v0['vol']))
+    outtext = generate_outtext(info, output_format, target_plot)
+    return outtext
 
-        tree = ET.ElementTree(root)
-    #    tree.write("test.xml") # write to a temporary file
-        return ET.dump(tree) # return an XML string
+def generate_outtext(info, output_format, target_plot):
+    """
+    input the database query and generate the formatted text
 
-    elif(output_format == 'csv'):
-        # construct csv
-        text = ["week_year,day_time,speed,vol,lanedr"]
-        for k, v in info.items():
-            kk = k.strip()
-            for v0 in v:
-                wday = datetime.datetime(1900,1,7, v0['datetime'].hour, v0['datetime'].minute, v0['datetime'].second) + datetime.timedelta( (v0['datetime'].weekday() + 1) % 7  ,0)
-                text.append("%s,%s,%s,%s,%s" % (v0['datetime'].strftime("%Y-%m-%d"), wday.strftime("%Y-%m-%d %H:%M:%S"), str(v0['speed']), str(v0['vol']), kk))
-        outtext = '\n'.join(t for t in text)
-        return outtext
+    :param info:
+        generated from database query.
+    :param output_format:
+        'xml', 'csv'
+    :param target_plot:
+        'NZE'-- NZE plot ("week_year,day_time,speed,vol,lanedr")
+        'TVV'-- Time VS Volume plot ("date_time, volume, lanedir")
+    :return:
+    """
+
+    if target_plot == 'NZE':  # format for generating NZE plot ("week_year,day_time,speed,vol,lanedr")
+        if output_format == 'xml':
+            # construct XML
+            root = ET.Element("items")
+            for k, v in info.items():
+                lanedr = ET.SubElement(root, "lanedr")
+                lanedr.set('direction', k.strip())
+                for v0 in v:
+                    item = ET.SubElement(lanedr, "item")
+                    item.set("datetime", v0['datetime'].strftime("%Y-%m-%d %H:%M:%S"))
+                    item.set("speed", str(v0['speed']))
+                    item.set("vol", str(v0['vol']))
+
+            tree = ET.ElementTree(root)
+        #    tree.write("test.xml") # write to a temporary file
+            return ET.dump(tree) # return an XML string
+
+        elif output_format == 'csv':
+            # construct csv
+            text = ["week_year,day_time,speed,vol,lanedr"]
+            for k, v in info.items():
+                kk = k.strip()
+                for v0 in v:
+                    wday = datetime.datetime(1900,1,7, v0['datetime'].hour, v0['datetime'].minute, v0['datetime'].second) + datetime.timedelta( (v0['datetime'].weekday() + 1) % 7  ,0)
+                    text.append("%s,%s,%s,%s,%s" % (v0['datetime'].strftime("%Y-%m-%d"), wday.strftime("%Y-%m-%d %H:%M:%S"), str(v0['speed']), str(v0['vol']), kk))
+            outtext = '\n'.join(t for t in text)
+            return outtext
+
+    elif target_plot == 'TVV': # format for generating Time VS Volume plot ("date_time, volume, lanedir")
+        if output_format == 'xml':
+            # construct XML
+            root = ET.Element("items")
+            for k, v in info.items():
+                lanedr = ET.SubElement(root, "lanedr")
+                lanedr.set('direction', k.strip())
+                for v0 in v:
+                    item = ET.SubElement(lanedr, "item")
+                    item.set("datetime", v0['datetime'].strftime("%Y-%m-%d %H:%M:%S"))
+                    item.set("vol", str(v0['vol']))
+
+            tree = ET.ElementTree(root)
+        #    tree.write("test.xml") # write to a temporary file
+            return ET.dump(tree) # return an XML string
+
+        elif output_format == 'csv':
+            # construct csv
+            text = ["datetime,vol,lanedr"]
+            for k, v in info.items():
+                kk = k.strip()
+                for v0 in v:
+                    text.append("%s,%s,%s" % (v0['datetime'].strftime("%Y-%m-%d %H:%M:%S"), str(v0['vol']), kk))
+            outtext = '\n'.join(t for t in text)
+            return outtext
 
 def getcorridor():
+    """
+    returns the json formatted corridor info string
+    """
     cor_data = load_corridors()
     return json.dumps(cor_data)
+
+
+def query_by_corridor_components(corridor_id, date_time, landir):
+    """
+    returns the
+    :param corridor_id: corridor ID
+    :param date_time:
+    :return:
+    """
+    # query data
+    DBserver, DBname, UID, PWD, tblname = load_dbsetting_file(db_setting_path)
+    connStr = ( r'DRIVER={SQL Server};SERVER=' +
+            DBserver + ';DATABASE=' + DBname + ';' +
+            'UID=' + UID + ';PWD=' + PWD)
+
+    conn = pyodbc.connect(connStr)
+
+    querystr = "SELECT acisa, VolSum, avg_speed FROM %s WHERE data_datetime = \'%s\'AND ACISA in (%s) AND laneDir = \'%s\'"
+    return
+
+
+
+
 
 # testing command
 #print query_by_corridor_group('1', '2013-10-01', '2013-10-31')

@@ -26,20 +26,22 @@ if method == 'query_by_acisa':
     start_date = form.getvalue('start_date')
     end_date = form.getvalue('end_date')
     output_format = form.getvalue('output_format')
+    target_plot = form.getvalue('target_plot')
     if output_format is None:
-        print db_access.query_by_acisa(acisa, start_date, end_date)
+        print db_access.query_by_acisa(acisa, start_date, end_date, target_plot=target_plot)
     else:
-        print db_access.query_by_acisa(acisa, start_date, end_date, output_format)
+        print db_access.query_by_acisa(acisa, start_date, end_date, output_format=output_format, target_plot=target_plot)
 
 elif method == 'query_by_corridor_group':
     corridor_id = form.getvalue('corridor_id')
     start_date = form.getvalue('start_date')
     end_date = form.getvalue('end_date')
     output_format = form.getvalue('output_format')
+    target_plot = form.getvalue('target_plot')
     if output_format is None:
-        print db_access.query_by_corridor_group(corridor_id, start_date, end_date)
+        print db_access.query_by_corridor_group(corridor_id, start_date, end_date, target_plot=target_plot)
     else:
-        print db_access.query_by_corridor_group(corridor_id, start_date, end_date, output_format)
+        print db_access.query_by_corridor_group(corridor_id, start_date, end_date, output_format=output_format, target_plot=target_plot)
 
 elif method == 'getcorridor':
     print db_access.getcorridor()
