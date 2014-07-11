@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<head>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <script src="http://d3js.org/d3.v3.min.js"></script>
+    <script src="http://code.highcharts.com/highcharts.js"></script>
+    <script src="http://code.highcharts.com/modules/exporting.js"></script>
+
+    <style>
+
+    body {
+          font: 12px sans-serif;
+    }
+
+    .axis path,
+    .axis line {
+        fill: none;
+        stroke: grey;
+        shape-rendering: crispEdges;
+    }
+
+    .dot {
+        stroke: none;
+        fill: steelblue;
+    }
+
+    .grid .tick {
+        stroke: lightgrey;
+        opacity: 0.7;
+    }
+    .grid path {
+        stroke-width: 0;
+    }
+
+    div.tooltip {
+        position: absolute;
+        text-align: center;
+        width: 80px;
+        height: 42px;
+        padding: 2px;
+        font: 12px sans-serif;
+        background: #ddd;
+        border: solid 0px #aaa;
+        border-radius: 8px;
+        pointer-events: none;
+    }
+
+    </style>
+</head>
+<body>
+
+<form>
+    <div id="cbox"></div>
+    Start_Date <i>(YYYY-MM-DD)</i>: <input type="text" id="startdate" value="2013-10-01">
+    End_Date <i>(YYYY-MM-DD)</i>: <input type="text" id="enddate" value="2013-10-02">
+    <input id="gen" type="button" value="Generate" onclick="generate()">
+    <input id="ins" style="visibility: hidden" type="button" value="Insert" onclick="insert()">
+    <input id="cle" style="visibility: hidden" type="button" value="Clear" onclick="clearchart()">
+</form>
+
+<p><i>1. Select the time period and the corridors or intersections to generate the plot. </i></p>
+<p><i>2. Insert more series of other corridors or intersections by clicking "Insert". </i></p>
+<p><i>3. Clear the chart to set a new time period by clicking "Clear". </i></p>
+<p><i> * Note that this visualization takes a few seconds to process. *</i></p>
+<hr>
+
+<script>
+    $.getJSON("http://10.41.20.61:10808/dataviz/datavizcgi.py?method=getcorridor", function(data){
+        htmlstr = "Corridor/Intersection: ";
+        htmlstr += "<select id=\"target\">"
+        $.each( data, function( k, v ) {
+            htmlstr += "<option value=\"" + k + "\">" + v['name'] + "</option>";
+            for(acisa in v['intersections']){
+                htmlstr += "<option value=\"#" + v['intersections'][acisa] + "\"> # " + v['intersections'][acisa] + "</option>";
+            }
+        });
+        htmlstr += "</select>"
+        $("#cbox").html(htmlstr);
+    });
+</script>
+
+<div id="container" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
+
+<script>
+    var chart;
+
+    function generate(){
+        var coi = $("#target").val();
+        var coiname = $("#target option:selected").text();
+        var stdate = $("#startdate").val();
+        var eddate = $("#enddate").val();
+
+        var iscorridor = coi.indexOf("#") == 0?false:true;
+        var querystr;
+
+        if(iscorridor == true){
+            querystr = "http://10.41.20.61:10808/dataviz/datavizcgi.py?method=query_by_corridor_group&target_plot=TVV&corridor_id=" + coi + "&start_date=" + stdate + "&end_date=" + eddate;
+        }
+        else{
+            querystr = "http://10.41.20.61:10808/dataviz/datavizcgi.py?method=query_by_acisa&target_plot=TVV&acisa=" + coi.substring(1) + "&start_date=" + stdate + "&end_date=" + eddate;
+        }
+
+        $.get(querystr, function(data) {
+
+            $("#ins").css("visibility","visible");
+            $("#cle").css("visibility","visible");
+            $("#gen").attr("disabled", true);
+            $("#startdate").attr("disabled", true);
+            $("#enddate").attr("disabled", true);
+
+            var series_temp = {};
+
+            var lines = data.split("\n");
+            // load CSV
+            var times = [];
+            for(var i=1;i<lines.length;i++){
+                if(lines[i] != "") {
+                    var vals = lines[i].split(",");
+                    if (!(vals[2] in series_temp)) {
+                        var temp_s = {name: coiname + " " + vals[2], data: []};
+                        series_temp[vals[2]] = temp_s;
+                    }
+                    times.push(Date.parse(vals[0]));
+                    series_temp[vals[2]].data.push(parseInt(vals[1]));
+                }
+            }
+
+            var first_series = [];
+
+            for(var key in series_temp){
+                series_temp[key]['pointStart'] = times[0];
+                series_temp[key]['pointInterval'] = times[1] - times[0];
+                series_temp[key]['type'] = 'line';
+                first_series.push(series_temp[key]);
+            }
+
+            var options = {
+                chart: {
+                    renderTo: 'container'
+                },
+                global : {
+                    useUTC : false
+                },
+                title: {
+                    text: 'Time vs. Volume',
+                    x: -20 //center
+                },
+                subtitle: {
+                    text: 'Source: SNAPS data',
+                    x: -20
+                },
+                xAxis: {
+                    type: 'datetime',
+                    title: {
+                        text: 'Date'
+                    }
+                },
+                yAxis: {
+                    title: {
+                        text: 'Volume'
+                    },
+                    plotLines: [
+                        {
+                            value: 0,
+                            width: 1,
+                            color: '#808080'
+                        }
+                    ]
+                },
+                tooltip: {
+                    valueSuffix: ''
+                },
+                legend: {
+                    layout: 'vertical',
+                    align: 'right',
+                    verticalAlign: 'middle',
+                    borderWidth: 0
+                },
+                series: first_series
+            };
+
+            Highcharts.setOptions({                                            // This is for all plots, change Date axis to local timezone
+                global : {
+                    useUTC : false
+                }
+            });
+            chart = new Highcharts.Chart(options);
+        });
+
+    }
+
+    function insert(){
+        var coi = $("#target").val();
+        var coiname = $("#target option:selected").text();
+        var stdate = $("#startdate").val();
+        var eddate = $("#enddate").val();
+
+        var iscorridor = coi.indexOf("#") == 0?false:true;
+        var querystr;
+
+        if(iscorridor == true){
+            querystr = "http://10.41.20.61:10808/dataviz/datavizcgi.py?method=query_by_corridor_group&target_plot=TVV&corridor_id=" + coi + "&start_date=" + stdate + "&end_date=" + eddate;
+        }
+        else{
+            querystr = "http://10.41.20.61:10808/dataviz/datavizcgi.py?method=query_by_acisa&target_plot=TVV&acisa=" + coi.substring(1) + "&start_date=" + stdate + "&end_date=" + eddate;
+        }
+
+        $.get(querystr, function(data) {
+            var series_temp = {};
+
+            var lines = data.split("\n");
+            // load CSV
+            var times = [];
+            for(var i=1;i<lines.length;i++){
+                if(lines[i] != "") {
+                    var vals = lines[i].split(",");
+                    if (!(vals[2] in series_temp)) {
+                        var temp_s = {name: coiname + " " + vals[2], data: []};
+                        series_temp[vals[2]] = temp_s;
+                    }
+                    times.push(Date.parse(vals[0]));
+                    series_temp[vals[2]].data.push(parseInt(vals[1]));
+                }
+            }
+
+            for(var key in series_temp){
+                series_temp[key]['pointStart'] = times[0];
+                series_temp[key]['pointInterval'] = times[1] - times[0];
+                series_temp[key]['type'] = 'line';
+                chart.addSeries(series_temp[key]);
+            }
+        });
+    }
+
+    function clearchart(){
+        while(chart.series.length > 0) {
+            chart.series[0].remove(true);
+        }
+        $("#ins").css("visibility","hidden");
+        $("#cle").css("visibility","hidden");
+        $("#gen").attr("disabled", false);
+        $("#startdate").attr("disabled", false);
+        $("#enddate").attr("disabled", false);
+    }
+</script>
