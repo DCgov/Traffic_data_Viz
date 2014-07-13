@@ -91,6 +91,10 @@
         var stdate = $("#startdate").val();
         var eddate = $("#enddate").val();
 
+        if(!isValidDate(stdate) || isValidDate(eddate)){
+            alert("Please input a valid date in the format of \"YYYY-MM-DD\".");
+        }
+
         var iscorridor = coi.indexOf("#") == 0?false:true;
         var querystr;
 
@@ -242,5 +246,11 @@
         $("#gen").attr("disabled", false);
         $("#startdate").attr("disabled", false);
         $("#enddate").attr("disabled", false);
+    }
+
+    function isValidDate(s) {
+        var bits = s.split('-');
+        var d = new Date(bits[2], bits[1] - 1, bits[0]);
+        return d && (d.getMonth() + 1) == bits[1] && d.getDate() == Number(bits[0]);
     }
 </script>

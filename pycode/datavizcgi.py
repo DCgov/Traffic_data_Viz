@@ -5,8 +5,8 @@ import cgi, cgitb
 
 '''
 examples:
-http://localhost:10808/dataviz/datavizcgi.py?method=query_by_corridor_group&corridor_id=1&start_date=2013-10-01&end_date=2013-10-31
-http://localhost:10808/dataviz/datavizcgi.py?method=query_by_acisa&acisa=2135&start_date=2013-10-01&end_date=2013-10-31
+http://localhost:10808/dataviz/datavizcgi.py?method=query_by_corridor_group&target_plot=NZE&corridor_id=1&start_date=2013-10-01&end_date=2013-10-31
+http://localhost:10808/dataviz/datavizcgi.py?method=query_by_acisa&target_plot=NZE&acisa=2135&start_date=2013-10-01&end_date=2013-10-31
 http://localhost:10808/dataviz/datavizcgi.py?method=getcorridor
 
 '''

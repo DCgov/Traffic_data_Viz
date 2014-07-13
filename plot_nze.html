@@ -113,6 +113,11 @@ function generate() {
     var coiname = $("#target option:selected").text();
     var stdate = $("#startdate").val();
     var eddate = $("#enddate").val();
+
+    if(!isValidDate(stdate) || isValidDate(eddate)){
+        alert("Please input a valid date in the format of \"YYYY-MM-DD\".");
+    }
+
     var iscorridor = false;
     if(coi.indexOf("#") == 0) {
         querystr = "http://10.41.20.61:10808/dataviz/datavizcgi.py?method=query_by_acisa&target_plot=NZE&acisa=" + coi.substring(1) + "&start_date=" + stdate + "&end_date=" + eddate;
@@ -233,6 +238,12 @@ function generate() {
         }
         $("body").append("<hr>");
     });
+}
+
+function isValidDate(s) {
+    var bits = s.split('-');
+    var d = new Date(bits[2], bits[1] - 1, bits[0]);
+    return d && (d.getMonth() + 1) == bits[1] && d.getDate() == Number(bits[0]);
 }
 
 </script>
