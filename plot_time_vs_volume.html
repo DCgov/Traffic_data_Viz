@@ -210,7 +210,7 @@
         else{
             querystr = "http://10.41.20.61:10808/dataviz/datavizcgi.py?method=query_by_acisa&target_plot=TVV&acisa=" + coi.substring(1) + "&start_date=" + stdate + "&end_date=" + eddate;
         }
-        document.write(querystr);
+
         $.get(querystr, function(data) {
             var series_temp = {};
 
