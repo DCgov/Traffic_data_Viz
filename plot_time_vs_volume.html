@@ -91,8 +91,9 @@
         var stdate = $("#startdate").val();
         var eddate = $("#enddate").val();
 
-        if(!isValidDate(stdate) || isValidDate(eddate)){
+        if(!isValidDate(stdate) || !isValidDate(eddate)){
             alert("Please input a valid date in the format of \"YYYY-MM-DD\".");
+            return;
         }
 
         var iscorridor = coi.indexOf("#") == 0?false:true;
@@ -209,7 +210,7 @@
         else{
             querystr = "http://10.41.20.61:10808/dataviz/datavizcgi.py?method=query_by_acisa&target_plot=TVV&acisa=" + coi.substring(1) + "&start_date=" + stdate + "&end_date=" + eddate;
         }
-
+        document.write(querystr);
         $.get(querystr, function(data) {
             var series_temp = {};
 
@@ -250,7 +251,7 @@
 
     function isValidDate(s) {
         var bits = s.split('-');
-        var d = new Date(bits[2], bits[1] - 1, bits[0]);
-        return d && (d.getMonth() + 1) == bits[1] && d.getDate() == Number(bits[0]);
+        var d = new Date(parseInt(bits[0]), parseInt(bits[1] - 1), parseInt(bits[2]));
+        return d && (d.getMonth() + 1) == bits[1] && d.getDate() == Number(bits[2]);
     }
 </script>
