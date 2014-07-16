@@ -48,7 +48,6 @@
     </style>
 </head>
 <body>
-
 <form>
     <div id="cbox"></div>
     Start_Date <i>(YYYY-MM-DD)</i>: <input type="text" id="startdate" value="2013-10-01">
@@ -66,18 +65,31 @@
 <hr>
 
 <script>
-    $.getJSON("http://10.41.20.61:10808/dataviz/datavizcgi.py?method=getcorridor", function(data){
-        htmlstr = "Corridor/Intersection: ";
-        htmlstr += "<select id=\"target\">"
-        $.each( data, function( k, v ) {
-            htmlstr += "<option value=\"" + k + "\">" + v['name'] + "</option>";
-            for(acisa in v['intersections']){
-                htmlstr += "<option value=\"#" + v['intersections'][acisa] + "\"> # " + v['intersections'][acisa] + "</option>";
-            }
+    var inputtype = "select";
+    function ui_add_corridor_selection(){
+        $.getJSON("http://10.41.20.61:10808/dataviz/datavizcgi.py?method=getcorridor", function(data){
+            htmlstr = "Corridor/Intersection: ";
+            htmlstr += "<select id=\"target\">"
+            $.each( data, function( k, v ) {
+                htmlstr += "<option value=\"" + k + "\">" + v['name'] + "</option>";
+                for(acisa in v['intersections']){
+                    htmlstr += "<option value=\"#" + v['intersections'][acisa] + "\"> # " + v['intersections'][acisa] + "</option>";
+                }
+            });
+            htmlstr += "</select>"
+            htmlstr += "      <a href=\"#\" onclick='ui_add_freetext_ACISA()'>switch to free text input</a>";
+            inputtype = "select";
+            $("#cbox").html(htmlstr);
         });
-        htmlstr += "</select>"
+    }
+    function ui_add_freetext_ACISA(){
+        htmlstr = "Intersection (ACISA #): ";
+        htmlstr += "<input type=\"text\" id=\"target\">";
+        htmlstr += "      <a href=\"#\" onclick=\"ui_add_corridor_selection()\">switch to selection input</a>";
+        inputtype = "text";
         $("#cbox").html(htmlstr);
-    });
+    }
+    ui_add_corridor_selection();
 </script>
 
 <div id="container" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
@@ -95,15 +107,25 @@
             alert("Please input a valid date in the format of \"YYYY-MM-DD\".");
             return;
         }
+        var iscorridor;
+        var acisa;
 
-        var iscorridor = coi.indexOf("#") == 0?false:true;
+        if(inputtype == "select"){
+            iscorridor = coi.indexOf("#") == 0?false:true;
+            acisa = coi.substring(1);
+        }
+        else{
+            iscorridor = false;
+            acisa = coi;
+            coiname = "# " + acisa;
+        }
         var querystr;
 
         if(iscorridor == true){
             querystr = "http://10.41.20.61:10808/dataviz/datavizcgi.py?method=query_by_corridor_group&target_plot=TVV&corridor_id=" + coi + "&start_date=" + stdate + "&end_date=" + eddate;
         }
         else{
-            querystr = "http://10.41.20.61:10808/dataviz/datavizcgi.py?method=query_by_acisa&target_plot=TVV&acisa=" + coi.substring(1) + "&start_date=" + stdate + "&end_date=" + eddate;
+            querystr = "http://10.41.20.61:10808/dataviz/datavizcgi.py?method=query_by_acisa&target_plot=TVV&acisa=" + acisa + "&start_date=" + stdate + "&end_date=" + eddate;
         }
 
         $.get(querystr, function(data) {
@@ -201,14 +223,24 @@
         var stdate = $("#startdate").val();
         var eddate = $("#enddate").val();
 
-        var iscorridor = coi.indexOf("#") == 0?false:true;
-        var querystr;
+        var iscorridor;
+        var acisa;
+
+        if(inputtype == "select"){
+            iscorridor = coi.indexOf("#") == 0?false:true;
+            acisa = coi.substring(1);
+        }
+        else{
+            iscorridor = false;
+            acisa = coi;
+            coiname = "# " + acisa;
+        }
 
         if(iscorridor == true){
             querystr = "http://10.41.20.61:10808/dataviz/datavizcgi.py?method=query_by_corridor_group&target_plot=TVV&corridor_id=" + coi + "&start_date=" + stdate + "&end_date=" + eddate;
         }
         else{
-            querystr = "http://10.41.20.61:10808/dataviz/datavizcgi.py?method=query_by_acisa&target_plot=TVV&acisa=" + coi.substring(1) + "&start_date=" + stdate + "&end_date=" + eddate;
+            querystr = "http://10.41.20.61:10808/dataviz/datavizcgi.py?method=query_by_acisa&target_plot=TVV&acisa=" + acisa + "&start_date=" + stdate + "&end_date=" + eddate;
         }
 
         $.get(querystr, function(data) {

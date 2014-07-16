@@ -57,18 +57,31 @@
 <hr>
 
 <script>
-    $.getJSON("http://10.41.20.61:10808/dataviz/datavizcgi.py?method=getcorridor", function(data){
-        htmlstr = "Corridor/Intersection: ";
-        htmlstr += "<select id=\"target\">"
-        $.each( data, function( k, v ) {
-            htmlstr += "<option value=\"" + k + "\">" + v['name'] + "</option>";
-            for(acisa in v['intersections']){
-                htmlstr += "<option value=\"#" + v['intersections'][acisa] + "\"> # " + v['intersections'][acisa] + "</option>";
-            }
+    var inputtype = "select";
+    function ui_add_corridor_selection(){
+        $.getJSON("http://10.41.20.61:10808/dataviz/datavizcgi.py?method=getcorridor", function(data){
+            htmlstr = "Corridor/Intersection: ";
+            htmlstr += "<select id=\"target\">"
+            $.each( data, function( k, v ) {
+                htmlstr += "<option value=\"" + k + "\">" + v['name'] + "</option>";
+                for(acisa in v['intersections']){
+                    htmlstr += "<option value=\"#" + v['intersections'][acisa] + "\"> # " + v['intersections'][acisa] + "</option>";
+                }
+            });
+            htmlstr += "</select>"
+            htmlstr += "      <a href=\"#\" onclick='ui_add_freetext_ACISA()'>switch to free text input</a>";
+            inputtype = "select";
+            $("#cbox").html(htmlstr);
         });
-        htmlstr += "</select>"
+    }
+    function ui_add_freetext_ACISA(){
+        htmlstr = "Intersection (ACISA #): ";
+        htmlstr += "<input type=\"text\" id=\"target\">";
+        htmlstr += "      <a href=\"#\" onclick=\"ui_add_corridor_selection()\">switch to selection input</a>";
+        inputtype = "text";
         $("#cbox").html(htmlstr);
-    });
+    }
+    ui_add_corridor_selection();
 </script>
 
 <script>
@@ -119,15 +132,27 @@ function generate() {
         return;
     }
 
-    var iscorridor = false;
-    if(coi.indexOf("#") == 0) {
-        querystr = "http://10.41.20.61:10808/dataviz/datavizcgi.py?method=query_by_acisa&target_plot=NZE&acisa=" + coi.substring(1) + "&start_date=" + stdate + "&end_date=" + eddate;
-        iscorridor = false;
+    var iscorridor;
+    var acisa;
+
+    if(inputtype == "select"){
+        iscorridor = coi.indexOf("#") == 0?false:true;
+        acisa = coi.substring(1);
     }
     else{
-        querystr = "http://10.41.20.61:10808/dataviz/datavizcgi.py?method=query_by_corridor_group&target_plot=NZE&corridor_id=" + coi + "&start_date=" + stdate + "&end_date=" + eddate;
-        iscorridor = true;
+        iscorridor = false;
+        acisa = coi;
+        coiname = "# " + acisa;
     }
+    var querystr;
+
+    if(iscorridor == true){
+        querystr = "http://10.41.20.61:10808/dataviz/datavizcgi.py?method=query_by_corridor_group&target_plot=NZE&corridor_id=" + coi + "&start_date=" + stdate + "&end_date=" + eddate;
+    }
+    else{
+        querystr = "http://10.41.20.61:10808/dataviz/datavizcgi.py?method=query_by_acisa&target_plot=NZE&acisa=" + acisa + "&start_date=" + stdate + "&end_date=" + eddate;
+    }
+
     d3.csv(querystr, function (error, data) {
 
         dlist = {};
