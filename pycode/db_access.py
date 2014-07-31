@@ -104,6 +104,7 @@ def query_by_corridor_group(corridor_id, start_date, end_date, output_format = '
         start_date, end_date)
 
     dbCursor = conn.cursor()
+
     dbCursor.execute(query)
 
     info = {}
