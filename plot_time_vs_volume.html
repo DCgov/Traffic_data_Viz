@@ -1,29 +1,36 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
+
 <head>
     <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <script type="text/javascript" src="http://mbostock.github.com/d3/d3.min.js"></script>
     <script src="http://d3js.org/d3.v3.min.js"></script>
     <script src="http://code.highcharts.com/highcharts.js"></script>
     <script src="http://code.highcharts.com/modules/exporting.js"></script>
+    <style type="text/css">
+    td,
+    th {
+        padding: 2px 4px;
+    }
+    th {
+        font-weight: bold;
+    }
+    </style>
 
     <style>
-
     body {
-          font: 12px sans-serif;
+        font: 12px sans-serif;
     }
-
     .axis path,
     .axis line {
         fill: none;
         stroke: grey;
         shape-rendering: crispEdges;
     }
-
     .dot {
         stroke: none;
         fill: steelblue;
     }
-
     .grid .tick {
         stroke: lightgrey;
         opacity: 0.7;
@@ -31,7 +38,6 @@
     .grid path {
         stroke-width: 0;
     }
-
     div.tooltip {
         position: absolute;
         text-align: center;
@@ -44,35 +50,43 @@
         border-radius: 8px;
         pointer-events: none;
     }
-
     </style>
 </head>
-<body>
-<form>
-    <div id="cbox"></div>
-    Start_Date <i>(YYYY-MM-DD)</i>: <input type="text" id="startdate" value="2013-10-01">
-    End_Date <i>(YYYY-MM-DD)</i>: <input type="text" id="enddate" value="2013-10-02">
-    <input id="gen" type="button" value="Generate" onclick="generate()">
-    <input id="ins" style="visibility: hidden" type="button" value="Insert" onclick="insert()">
-    <input id="cle" style="visibility: hidden" type="button" value="Clear" onclick="clearchart()">
-</form>
 
-<p><i>1. Select the time period and the corridors or intersections to generate the plot. </i></p>
-<p><i>2. Insert more series of other corridors or intersections by clicking "Insert". </i></p>
-<p><i>3. Click on the series name in the legend to disable/enable the series. </i></p>
-<p><i>4. Clear the chart to set a new time period by clicking "Clear". </i></p>
-<p><i> * Note that this visualization takes a few seconds to process. *</i></p>
-<hr>
+<body id="theB">
 
-<script>
+    <form>
+        <div id="cbox"></div>
+        Start_Date <i>(YYYY-MM-DD)</i>:
+        <input type="text" id="startdate" value="2013-10-01">End_Date <i>(YYYY-MM-DD)</i>:
+        <input type="text" id="enddate" value="2013-10-02">
+        <input id="gen" type="button" value="Generate" onclick="generate()">
+        <input id="ins" style="visibility: hidden" type="button" value="Insert" onclick="insert()">
+        <input id="cle" style="visibility: hidden" type="button" value="Clear" onclick="clearchart()">
+    </form>
+
+    <p><i>1. Select the time period and the corridors or intersections to generate the plot. </i>
+    </p>
+    <p><i>2. Insert more series of other corridors or intersections by clicking "Insert". </i>
+    </p>
+    <p><i>3. Click on the series name in the legend to disable/enable the series. </i>
+    </p>
+    <p><i>4. Clear the chart to set a new time period by clicking "Clear". </i>
+    </p>
+    <p><i> * Note that this visualization takes a few seconds to process. *</i>
+    </p>
+    <hr>
+
+    <script>
     var inputtype = "select";
-    function ui_add_corridor_selection(){
-        $.getJSON("http://10.41.20.61:10808/dataviz/datavizcgi.py?method=getcorridor", function(data){
+
+    function ui_add_corridor_selection() {
+        $.getJSON("http://10.41.20.61:10808/dataviz/datavizcgi.py?method=getcorridor", function(data) {
             htmlstr = "Corridor/Intersection: ";
             htmlstr += "<select id=\"target\">"
-            $.each( data, function( k, v ) {
+            $.each(data, function(k, v) {
                 htmlstr += "<option value=\"" + k + "\">" + v['name'] + "</option>";
-                for(acisa in v['intersections']){
+                for (acisa in v['intersections']) {
                     htmlstr += "<option value=\"#" + v['intersections'][acisa] + "\"> # " + v['intersections'][acisa] + "</option>";
                 }
             });
@@ -82,7 +96,8 @@
             $("#cbox").html(htmlstr);
         });
     }
-    function ui_add_freetext_ACISA(){
+
+    function ui_add_freetext_ACISA() {
         htmlstr = "Intersection (ACISA #): ";
         htmlstr += "<input type=\"text\" id=\"target\">";
         htmlstr += "      <a href=\"#\" onclick=\"ui_add_corridor_selection()\">switch to selection input</a>";
@@ -90,48 +105,49 @@
         $("#cbox").html(htmlstr);
     }
     ui_add_corridor_selection();
-</script>
+    </script>
 
-<div id="container" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
+    <div id="container1" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
+    <div id="container2" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
+    <div id="tablepl"></div>
 
-<script>
-    var chart;
+    <script>
+    var chart1;
+    var chart2;
 
-    function generate(){
+    function generate() {
         var coi = $("#target").val();
         var coiname = $("#target option:selected").text();
         var stdate = $("#startdate").val();
         var eddate = $("#enddate").val();
 
-        if(!isValidDate(stdate) || !isValidDate(eddate)){
+        if (!isValidDate(stdate) || !isValidDate(eddate)) {
             alert("Please input a valid date in the format of \"YYYY-MM-DD\".");
             return;
         }
         var iscorridor;
         var acisa;
 
-        if(inputtype == "select"){
-            iscorridor = coi.indexOf("#") == 0?false:true;
+        if (inputtype == "select") {
+            iscorridor = coi.indexOf("#") == 0 ? false : true;
             acisa = coi.substring(1);
-        }
-        else{
+        } else {
             iscorridor = false;
             acisa = coi;
             coiname = "# " + acisa;
         }
         var querystr;
 
-        if(iscorridor == true){
+        if (iscorridor == true) {
             querystr = "http://10.41.20.61:10808/dataviz/datavizcgi.py?method=query_by_corridor_group&target_plot=TVV&corridor_id=" + coi + "&start_date=" + stdate + "&end_date=" + eddate;
-        }
-        else{
+        } else {
             querystr = "http://10.41.20.61:10808/dataviz/datavizcgi.py?method=query_by_acisa&target_plot=TVV&acisa=" + acisa + "&start_date=" + stdate + "&end_date=" + eddate;
         }
 
         $.get(querystr, function(data) {
 
-            $("#ins").css("visibility","visible");
-            $("#cle").css("visibility","visible");
+            $("#ins").css("visibility", "visible");
+            $("#cle").css("visibility", "visible");
             $("#gen").attr("disabled", true);
             $("#startdate").attr("disabled", true);
             $("#enddate").attr("disabled", true);
@@ -139,13 +155,51 @@
             var series_temp = {};
 
             var lines = data.split("\n");
+            // var lines = data.split("||")[0].split("\n");
+            // var tables = data.split("||")[1].split("\n");
+            // var tableObj = [];
+
+            // for (var i = 0; i <= tables.length - 1; i++) {
+            //     var oneRow = tables[i].split(",");
+            //     tableObj.push({
+            //         ACISA: oneRow[0],
+            //         00: oneRow[1],
+            //         01: oneRow[2],
+            //         02: oneRow[3],
+            //         03: oneRow[4],
+            //         04: oneRow[5],
+            //         05: oneRow[6],
+            //         06: oneRow[7],
+            //         07: oneRow[8],
+            //         08: oneRow[9],
+            //         09: oneRow[10],
+            //         10: oneRow[11],
+            //         11: oneRow[12],
+            //         12: oneRow[13],
+            //         13: oneRow[14],
+            //         14: oneRow[15],
+            //         15: oneRow[16],
+            //         16: oneRow[17],
+            //         17: oneRow[18],
+            //         18: oneRow[19],
+            //         19: oneRow[20],
+            //         20: oneRow[21],
+            //         21: oneRow[22],
+            //         22: oneRow[23],
+            //         23: oneRow[24],
+            //         24: oneRow[25]
+            //     });
+            // };
             // load CSV
             var times = [];
-            for(var i=1;i<lines.length;i++){
-                if(lines[i] != "") {
+            for (var i = 1; i < lines.length; i++) {
+                if (lines[i] != "") {
                     var vals = lines[i].split(",");
                     if (!(vals[2] in series_temp)) {
-                        var temp_s = {name: coiname + " " + vals[2], data: []};
+                        var temp_s = {
+                            name: coiname + " " + vals[2],
+                            data: []
+                        };
                         series_temp[vals[2]] = temp_s;
                     }
                     times.push(Date.parse(vals[0]));
@@ -155,19 +209,19 @@
 
             var first_series = [];
 
-            for(var key in series_temp){
+            for (var key in series_temp) {
                 series_temp[key]['pointStart'] = times[0];
                 series_temp[key]['pointInterval'] = times[1] - times[0];
                 series_temp[key]['type'] = 'line';
                 first_series.push(series_temp[key]);
             }
 
-            var options = {
+            var options1 = {
                 chart: {
-                    renderTo: 'container'
+                    renderTo: 'container1'
                 },
-                global : {
-                    useUTC : false
+                global: {
+                    useUTC: false
                 },
                 title: {
                     text: 'Time vs. Volume',
@@ -187,13 +241,11 @@
                     title: {
                         text: 'Volume'
                     },
-                    plotLines: [
-                        {
-                            value: 0,
-                            width: 1,
-                            color: '#808080'
-                        }
-                    ]
+                    plotLines: [{
+                        value: 0,
+                        width: 1,
+                        color: '#808080'
+                    }]
                 },
                 tooltip: {
                     valueSuffix: ''
@@ -207,17 +259,63 @@
                 series: first_series
             };
 
-            Highcharts.setOptions({                                            // This is for all plots, change Date axis to local timezone
-                global : {
-                    useUTC : false
+            var options2 = {
+                chart: {
+                    renderTo: 'container2'
+                },
+                global: {
+                    useUTC: false
+                },
+                title: {
+                    text: 'Time vs. Volume',
+                    x: -20 //center
+                },
+                subtitle: {
+                    text: 'Source: SNAPS data',
+                    x: -20
+                },
+                xAxis: {
+                    type: 'datetime',
+                    title: {
+                        text: 'Time'
+                    }
+                },
+                yAxis: {
+                    title: {
+                        text: 'Volume'
+                    },
+                    plotLines: [{
+                        value: 0,
+                        width: 1,
+                        color: '#808080'
+                    }]
+                },
+                tooltip: {
+                    valueSuffix: ''
+                },
+                legend: {
+                    layout: 'vertical',
+                    align: 'right',
+                    verticalAlign: 'middle',
+                    borderWidth: 0
+                },
+                series: first_series
+            };
+
+            Highcharts.setOptions({ // This is for all plots, change Date axis to local timezone
+                global: {
+                    useUTC: false
                 }
             });
-            chart = new Highcharts.Chart(options);
+            chart1 = new Highcharts.Chart(options1);
+            chart2 = new Highcharts.Chart(options2);
+                // the columns you'd like to display
+            // tabulate(tableObj, ["ACISA", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24"]);
         });
 
     }
 
-    function insert(){
+    function insert() {
         var coi = $("#target").val();
         var coiname = $("#target option:selected").text();
         var stdate = $("#startdate").val();
@@ -226,20 +324,18 @@
         var iscorridor;
         var acisa;
 
-        if(inputtype == "select"){
-            iscorridor = coi.indexOf("#") == 0?false:true;
+        if (inputtype == "select") {
+            iscorridor = coi.indexOf("#") == 0 ? false : true;
             acisa = coi.substring(1);
-        }
-        else{
+        } else {
             iscorridor = false;
             acisa = coi;
             coiname = "# " + acisa;
         }
 
-        if(iscorridor == true){
+        if (iscorridor == true) {
             querystr = "http://10.41.20.61:10808/dataviz/datavizcgi.py?method=query_by_corridor_group&target_plot=TVV&corridor_id=" + coi + "&start_date=" + stdate + "&end_date=" + eddate;
-        }
-        else{
+        } else {
             querystr = "http://10.41.20.61:10808/dataviz/datavizcgi.py?method=query_by_acisa&target_plot=TVV&acisa=" + acisa + "&start_date=" + stdate + "&end_date=" + eddate;
         }
 
@@ -247,13 +343,18 @@
             var series_temp = {};
 
             var lines = data.split("\n");
+            // var lines = data.split("||")[0].split("\n");
+            // var tables = data.split("||")[1].split("\n");
             // load CSV
             var times = [];
-            for(var i=1;i<lines.length;i++){
-                if(lines[i] != "") {
+            for (var i = 1; i < lines.length; i++) {
+                if (lines[i] != "") {
                     var vals = lines[i].split(",");
                     if (!(vals[2] in series_temp)) {
-                        var temp_s = {name: coiname + " " + vals[2], data: []};
+                        var temp_s = {
+                            name: coiname + " " + vals[2],
+                            data: []
+                        };
                         series_temp[vals[2]] = temp_s;
                     }
                     times.push(Date.parse(vals[0]));
@@ -261,7 +362,7 @@
                 }
             }
 
-            for(var key in series_temp){
+            for (var key in series_temp) {
                 series_temp[key]['pointStart'] = times[0];
                 series_temp[key]['pointInterval'] = times[1] - times[0];
                 series_temp[key]['type'] = 'line';
@@ -270,12 +371,15 @@
         });
     }
 
-    function clearchart(){
-        while(chart.series.length > 0) {
-            chart.series[0].remove(true);
+    function clearchart() {
+        while (chart1.series.length > 0) {
+            chart1.series[0].remove(true);
         }
-        $("#ins").css("visibility","hidden");
-        $("#cle").css("visibility","hidden");
+        while (chart2.series.length > 0) {
+            chart2.series[0].remove(true);
+        }
+        $("#ins").css("visibility", "hidden");
+        $("#cle").css("visibility", "hidden");
         $("#gen").attr("disabled", false);
         $("#startdate").attr("disabled", false);
         $("#enddate").attr("disabled", false);
@@ -286,4 +390,44 @@
         var d = new Date(parseInt(bits[0]), parseInt(bits[1] - 1), parseInt(bits[2]));
         return d && (d.getMonth() + 1) == bits[1] && d.getDate() == Number(bits[2]);
     }
-</script>
+
+    function tabulate(data, columns) {
+        var table = d3.select("#tablepl").append("table"),
+            thead = table.append("thead"),
+            tbody = table.append("tbody");
+
+        // append the header row
+        thead.append("tr")
+            .selectAll("th")
+            .data(columns)
+            .enter()
+            .append("th")
+            .text(function(column) {
+                return column;
+            });
+
+        // create a row for each object in the data
+        var rows = tbody.selectAll("tr")
+            .data(data)
+            .enter()
+            .append("tr");
+
+        // create a cell in each row for each column
+        var cells = rows.selectAll("td")
+            .data(function(row) {
+                return columns.map(function(column) {
+                    return {
+                        column: column,
+                        value: row[column]
+                    };
+                });
+            })
+            .enter()
+            .append("td")
+            .text(function(d) {
+                return d.value;
+            });
+
+        return table;
+    }
+    </script>
