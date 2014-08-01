@@ -14,7 +14,7 @@ import json
 
 # Hard coding area
 CorridorFile = 'corridors.txt'
-db_setting_path = 'dbsettings.json'
+db_setting_path = 'E:/GitREPOs/dbsettings.json'
 folder = os.path.dirname(os.path.abspath(__file__))
 CorridorFile = os.path.join(folder, CorridorFile)
 db_setting_path = os.path.join(folder, db_setting_path)
@@ -50,7 +50,7 @@ def load_corridors():
     return cor_data
 
 
-def query_by_corridor_group(corridor_id, start_date, end_date, output_format = 'csv', target_plot = 'NZE'):
+def query_by_corridor_group(corridor_id, start_date, end_date, output_format='csv', target_plot='NZE'):
     """
     
     returns the aggregated value
@@ -188,6 +188,70 @@ def query_by_acisa(acisa, start_date, end_date, output_format = 'csv', target_pl
     outtext = generate_outtext(info, output_format, target_plot)
     return outtext
 
+def query_by_time_region(start_date, end_date, direction='both', output_format='json', target_plot='BBL'):
+    """
+    This function outputs the volume of all corridors/ACISAs within the selected time period generally for Bubble and
+    TreeMap visualization to present the hierarchical relations.
+    """
+    # load corridors
+    cor_data = load_corridors()
+    acmap = get_acisa_corridor_map(cor_data)
+
+    # query data
+    DBserver, DBname, UID, PWD, tblname = load_dbsetting_file(db_setting_path)
+    connStr = (r'DRIVER={SQL Server};SERVER=' +
+                DBserver + ';DATABASE=' + DBname + ';' +
+                'UID=' + UID + ';PWD=' + PWD)
+
+    conn = pyodbc.connect(connStr)
+
+    # make query string
+    if direction == 'both':
+        query = "SELECT acisa, laneDir, sum(VolSum), avg(avg_speed) FROM %s WHERE " % (tblname) \
+                + "data_datetime between \'%s\' and \'%s\' GROUP BY acisa, laneDir ORDER BY acisa, laneDir ASC" % (
+            start_date, end_date)
+    else:
+        query = "SELECT acisa, laneDir, sum(VolSum), avg(avg_speed) FROM %s WHERE " % (tblname) \
+                + "data_datetime between \'%s\' and \'%s\' and laneDir=\'%s\' GROUP BY acisa, laneDir ORDER BY acisa, laneDir ASC" % (start_date, end_date, direction)
+
+    print query
+    dbCursor = conn.cursor()
+    dbCursor.execute(query)
+
+    info = {"name": "root"}
+
+    for row in dbCursor:
+        (acisa, lanedr, vol, avgspd) = tuple(row[0:4])
+        if acisa in acmap:
+            if acmap[acisa] not in info:
+                info[acmap[acisa]] = {}
+            if acisa not in info[acmap[acisa]]:
+                info[acmap[acisa]][acisa] = {}
+            if direction == 'both':
+                acisa_lanedr = str(acisa) + "-" + lanedr
+                if acisa_lanedr not in info[acmap[acisa]][acisa]:
+                    info[acmap[acisa]][acisa][acisa_lanedr] = {}
+                info[acmap[acisa]][acisa][acisa_lanedr]["volume"] = vol
+                info[acmap[acisa]][acisa][acisa_lanedr]["speed"] = avgspd
+            else:
+                info[acmap[acisa]][acisa]["volume"] = vol
+                info[acmap[acisa]][acisa]["speed"] = avgspd
+        else:
+            if acisa not in info:
+                info[acisa] = {}
+            if direction == 'both':
+                acisa_lanedr = str(acisa) + "-" + lanedr
+                if acisa_lanedr not in info[acisa]:
+                    info[acisa][acisa_lanedr] = {}
+                info[acisa][acisa_lanedr]["volume"] = vol
+                info[acisa][acisa_lanedr]["speed"] = avgspd
+            else:
+                info[acisa]["volume"] = vol
+                info[acisa]["speed"] = avgspd
+
+    outtext = generate_outtext(info, output_format, target_plot)
+    return outtext
+
 
 def generate_outtext(info, output_format, target_plot, Ctable = False):
     """
@@ -277,6 +341,12 @@ def generate_outtext(info, output_format, target_plot, Ctable = False):
             outtext = '\n'.join(t for t in text)
             return outtext
 
+    elif target_plot == 'BBL' or target_plot == 'TMP': # format for bubble and TreeMap
+        ## only capable for json
+        if output_format == 'json':
+            outdict = traverse_hier_dict_info(info)
+            outtext = json.dumps(outdict)
+            return outtext
 
 def getcorridor():
     """
@@ -305,6 +375,41 @@ def query_by_corridor_components(corridor_id, date_time, landir):
     return
 
 
+def get_acisa_corridor_map(corridor_info):
+    """
+    get the mapping from ACISA to its corresponding corridor
+    returns a dict of {ACISA:Corridor}
+    """
+    acmap = {}
+    for k, v in corridor_info.items():
+        for acisa in v["intersections"]:
+            acmap[acisa] = v["name"]
+    return acmap
+
+
+def traverse_hier_dict_info(node):
+    """
+    recursively traverse the hierarchical structure dict for BBL and TMP visualizations
+    """
+    if "speed" in node:
+        # if node is a leaf, return its values
+        return {"speed": node["speed"], "volume": node["volume"]}
+    else:
+        # if node is not a leaf, collect its children
+        children = []
+        for k, v in node.items():
+            if v != "root":
+                tmp = traverse_hier_dict_info(v)
+                tmp["name"] = k
+                children.append(tmp)
+
+    if "name" in node:
+        # root
+        return {"name": "root", "children": children}
+    else:
+        # other nodes
+        return {"children": children}
 # testing command
 #print query_by_corridor_group('1', '2013-10-01', '2013-10-31')
 # print query_by_acisa('2135', '2013-10-01', '2013-10-31')
+print query_by_time_region('2013-10-01', '2013-10-31', direction='S')
