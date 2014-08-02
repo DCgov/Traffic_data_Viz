@@ -1,7 +1,8 @@
 __author__ = 'Kevin'
 
 import db_access
-import cgi, cgitb
+import cgi
+import cgitb
 
 '''
 examples:
@@ -51,9 +52,9 @@ elif method == 'query_by_time_region':
     output_format = form.getvalue('output_format')
     target_plot = form.getvalue('target_plot')
     if dir is None:
-        query_by_time_region(start_date, end_date, output_format='json', target_plot=target_plot)
+        print db_access.query_by_time_region(start_date, end_date, output_format='json', target_plot=target_plot)
     else:
-        query_by_time_region(start_date, end_date, direction=dir, output_format='json', target_plot=target_plot)
+        print db_access.query_by_time_region(start_date, end_date, direction=dir, output_format='json', target_plot=target_plot)
 
 elif method == 'getcorridor':
     print db_access.getcorridor()

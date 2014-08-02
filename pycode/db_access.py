@@ -14,7 +14,8 @@ import json
 
 # Hard coding area
 CorridorFile = 'corridors.txt'
-db_setting_path = 'E:/GitREPOs/dbsettings.json'
+# db_setting_path = 'E:/GitREPOs/dbsettings.json'
+db_setting_path = 'dbsettings.json'
 folder = os.path.dirname(os.path.abspath(__file__))
 CorridorFile = os.path.join(folder, CorridorFile)
 db_setting_path = os.path.join(folder, db_setting_path)
@@ -214,7 +215,7 @@ def query_by_time_region(start_date, end_date, direction='both', output_format='
         query = "SELECT acisa, laneDir, sum(VolSum), avg(avg_speed) FROM %s WHERE " % (tblname) \
                 + "data_datetime between \'%s\' and \'%s\' and laneDir=\'%s\' GROUP BY acisa, laneDir ORDER BY acisa, laneDir ASC" % (start_date, end_date, direction)
 
-    print query
+
     dbCursor = conn.cursor()
     dbCursor.execute(query)
 
@@ -222,6 +223,8 @@ def query_by_time_region(start_date, end_date, direction='both', output_format='
 
     for row in dbCursor:
         (acisa, lanedr, vol, avgspd) = tuple(row[0:4])
+        vol = vol if vol is not None and vol != 0 else 1
+        avgspd = avgspd if avgspd is not None and avgspd != 0 else 1
         if acisa in acmap:
             if acmap[acisa] not in info:
                 info[acmap[acisa]] = {}
@@ -345,7 +348,7 @@ def generate_outtext(info, output_format, target_plot, Ctable = False):
         ## only capable for json
         if output_format == 'json':
             outdict = traverse_hier_dict_info(info)
-            outtext = json.dumps(outdict)
+            outtext = json.dumps(outdict, sort_keys=True, indent=4)
             return outtext
 
 def getcorridor():
@@ -383,7 +386,7 @@ def get_acisa_corridor_map(corridor_info):
     acmap = {}
     for k, v in corridor_info.items():
         for acisa in v["intersections"]:
-            acmap[acisa] = v["name"]
+            acmap[int(acisa)] = v["name"]
     return acmap
 
 
@@ -405,11 +408,12 @@ def traverse_hier_dict_info(node):
 
     if "name" in node:
         # root
-        return {"name": "root", "children": children}
+        return {"name": "", "children": children}
     else:
         # other nodes
         return {"children": children}
 # testing command
 #print query_by_corridor_group('1', '2013-10-01', '2013-10-31')
 # print query_by_acisa('2135', '2013-10-01', '2013-10-31')
-print query_by_time_region('2013-10-01', '2013-10-31', direction='S')
+# print query_by_time_region('2013-10-01', '2013-10-31', direction='S')
+# print query_by_time_region('2013-10-01', '2013-10-31')

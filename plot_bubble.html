@@ -4,7 +4,12 @@
     <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
     <script src="http://d3js.org/d3.v3.min.js"></script>
     <script src="http://cdnjs.cloudflare.com/ajax/libs/d3/2.7.4/d3.layout.min.js"></script>
+    <script src="js/loading_indicator.js"></script>
+    <link rel="stylesheet" type="text/css" href="css/loading_indicator.css">
     <style type="text/css">
+        body {
+            font: 12px sans-serif;
+        }
         text {
           font-size: 11px;
           pointer-events: none;
@@ -40,12 +45,22 @@
 
 <form>
     Start_Date <i>(YYYY-MM-DD)</i>: <input type="text" id="startdate" value="2013-10-01">
-    End_Date <i>(YYYY-MM-DD)</i>: <input type="text" id="enddate" value="2013-11-30">
+    End_Date <i>(YYYY-MM-DD)</i>: <input type="text" id="enddate" value="2013-10-02">
+    Direction:
+    <select id="dir">
+        <option value="both">both</option>
+        <option value="N">N</option>
+        <option value="S">S</option>
+        <option value="RL">RL</option>
+    </select>
     <input type="button" value="Generate" onclick="generate()">
 </form>
 
+
 <p><i>This visualization takes a few seconds to process. The newest figure will be appended at the end of page.</i></p>
 <hr>
+
+<div id="plotarea"></div>
 
 <script type="text/javascript">
     var w = 1280,
@@ -58,41 +73,86 @@
 
     var pack = d3.layout.pack()
         .size([r, r])
-        .value(function(d) { return d.size; })
+        .value(function(d) { return d.volume; })
 
-    var vis = d3.select("body").insert("svg:svg", "h2")
+    var vis = d3.select("#plotarea").insert("svg:svg", "h2")
         .attr("width", w)
         .attr("height", h)
       .append("svg:g")
         .attr("transform", "translate(" + (w - r) / 2 + "," + (h - r) / 2 + ")");
 
-    d3.json("flare.json", function(data) {
-      node = root = data;
 
-      var nodes = pack.nodes(root);
+    var nodes = null;
 
-      vis.selectAll("circle")
-          .data(nodes)
-        .enter().append("svg:circle")
-          .attr("class", function(d) { return d.children ? "parent" : "child"; })
-          .attr("cx", function(d) { return d.x; })
-          .attr("cy", function(d) { return d.y; })
-          .attr("r", function(d) { return d.r; })
-          .on("click", function(d) { return zoom(node == d ? root : d); });
+    function generate() {
+        loading_indicator_trigger();
+        if(nodes != null){
+            $("#plotarea").html("");
+            vis = d3.select("#plotarea").insert("svg:svg", "h2")
+                .attr("width", w)
+                .attr("height", h)
+              .append("svg:g")
+                .attr("transform", "translate(" + (w - r) / 2 + "," + (h - r) / 2 + ")");
+            nodes = null;
 
-      vis.selectAll("text")
-          .data(nodes)
-        .enter().append("svg:text")
-          .attr("class", function(d) { return d.children ? "parent" : "child"; })
-          .attr("x", function(d) { return d.x; })
-          .attr("y", function(d) { return d.y; })
-          .attr("dy", ".35em")
-          .attr("text-anchor", "middle")
-          .style("opacity", function(d) { return d.r > 20 ? 1 : 0; })
-          .text(function(d) { return d.name; });
+        }
 
-      d3.select(window).on("click", function() { zoom(root); });
-    });
+        query = "http://10.41.20.61:10808/dataviz/datavizcgi.py?method=query_by_time_region&target_plot=BBL&start_date=" + $("#startdate").val() + "&end_date=" + $("#enddate").val() + "&dir=" + $("#dir option:selected").text();
+        console.log("load started.");
+
+        d3.json(query, function (data) {
+            node = root = data;
+
+            nodes = pack.nodes(root);
+
+            vis.selectAll("circle")
+                    .data(nodes)
+                    .enter().append("svg:circle")
+                    .attr("class", function (d) {
+                        return d.children ? "parent" : "child";
+                    })
+                    .attr("cx", function (d) {
+                        return d.x;
+                    })
+                    .attr("cy", function (d) {
+                        return d.y;
+                    })
+                    .attr("r", function (d) {
+                        return d.r;
+                    })
+                    .on("click", function (d) {
+                        return zoom(node == d ? root : d);
+                    });
+
+            vis.selectAll("text")
+                    .data(nodes)
+                    .enter().append("svg:text")
+                    .attr("class", function (d) {
+                        return d.children ? "parent" : "child";
+                    })
+                    .attr("x", function (d) {
+                        return d.x;
+                    })
+                    .attr("y", function (d) {
+                        return d.y;
+                    })
+                    .attr("dy", ".15em")
+                    .attr("text-anchor", "middle")
+                    .style("opacity", function (d) {
+                        return d.r > 20 ? 1 : 0;
+                    })
+                    .text(function (d) {
+                        return d.name;
+                    });
+
+            d3.select(window).on("click", function () {
+                zoom(root);
+            });
+
+            console.log("load finished.");
+            loading_indicator_trigger();
+        });
+    }
 
     function zoom(d, i) {
       var k = r / d.r / 2;
