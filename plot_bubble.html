@@ -44,13 +44,17 @@
 <body>
 
 <form>
-    Start_Date <i>(YYYY-MM-DD)</i>: <input type="text" id="startdate" value="2013-10-01">
-    End_Date <i>(YYYY-MM-DD)</i>: <input type="text" id="enddate" value="2013-10-02">
+    Start_DateTime <i>(YYYY-MM-DD H:M:S)</i>: <input type="text" id="startdate" value="2013-10-01 00:00:00">
+    End_DateTime <i>(YYYY-MM-DD H:M:S)</i>: <input type="text" id="enddate" value="2013-10-02 00:00:00">
     Direction:
     <select id="dir">
-        <option value="both">both</option>
+        <option value="all">all</option>
+        <option value="NS">N&S</option>
+        <option value="WE">W&E</option>
         <option value="N">N</option>
         <option value="S">S</option>
+        <option value="W">W</option>
+        <option value="E">E</option>
         <option value="RL">RL</option>
     </select>
     <input type="button" value="Generate" onclick="generate()">
@@ -97,7 +101,7 @@
 
         }
 
-        query = "http://10.41.20.61:10808/dataviz/datavizcgi.py?method=query_by_time_region&target_plot=BBL&start_date=" + $("#startdate").val() + "&end_date=" + $("#enddate").val() + "&dir=" + $("#dir option:selected").text();
+        query = "http://10.41.20.61:10808/dataviz/datavizcgi.py?method=query_by_time_region&target_plot=BBL&start_date=" + $("#startdate").val() + "&end_date=" + $("#enddate").val() + "&dir=" + $("#dir option:selected").val();
         console.log("load started.");
 
         d3.json(query, function (data) {
