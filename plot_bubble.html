@@ -103,6 +103,7 @@
 
         query = "http://10.41.20.61:10808/dataviz/datavizcgi.py?method=query_by_time_region&target_plot=BBL&start_date=" + $("#startdate").val() + "&end_date=" + $("#enddate").val() + "&dir=" + $("#dir option:selected").val();
         console.log("load started.");
+        console.log(query);
 
         d3.json(query, function (data) {
             node = root = data;
@@ -128,6 +129,7 @@
                         return zoom(node == d ? root : d);
                     });
 
+            var updateCounter = 0;
             vis.selectAll("text")
                     .data(nodes)
                     .enter().append("svg:text")
@@ -140,44 +142,109 @@
                     .attr("y", function (d) {
                         return d.y;
                     })
-                    .attr("dy", ".15em")
+                    .attr("dy", ".35em")
                     .attr("text-anchor", "middle")
-                    .style("opacity", function (d) {
-                        return d.r > 20 ? 1 : 0;
+                    .style("opacity", function(d) {
+                        if (d.children && d.children.length == 1)
+                            return 0;
+                        else{
+                             // at root level
+                            if(d.depth == 1)
+                                return d.r > 10 ? 1 : 0;
+                            else
+                                return 0;
+                        }
                     })
                     .text(function (d) {
                         return d.name;
-                    });
+                    })
+
 
             d3.select(window).on("click", function () {
                 zoom(root);
             });
 
+            zoom(root);
             console.log("load finished.");
             loading_indicator_trigger();
         });
     }
 
-    function zoom(d, i) {
-      var k = r / d.r / 2;
-      x.domain([d.x - d.r, d.x + d.r]);
-      y.domain([d.y - d.r, d.y + d.r]);
+    function zoom(d0, i) {
+      var k = r / d0.r / 2;
+      x.domain([d0.x - d0.r, d0.x + d0.r]);
+      y.domain([d0.y - d0.r, d0.y + d0.r]);
 
       var t = vis.transition()
-          .duration(d3.event.altKey ? 7500 : 750);
+          .duration(d3.event && d3.event.altKey ? 7500 : 750);
 
       t.selectAll("circle")
           .attr("cx", function(d) { return x(d.x); })
           .attr("cy", function(d) { return y(d.y); })
           .attr("r", function(d) { return k * d.r; });
 
+      var updateCounter = 0;
       t.selectAll("text")
+          .style("opacity", 0)
           .attr("x", function(d) { return x(d.x); })
           .attr("y", function(d) { return y(d.y); })
-          .style("opacity", function(d) { return k * d.r > 20 ? 1 : 0; });
+//          .style("opacity", function(d) { return k * d.r > 20 ? 1 : 0; })
+          .each(function(d, i) { updateCounter++; })
+          .each("end", function(d, i) {
+            updateCounter--;
+            if (updateCounter == 0) {
+                adjustLabels(k, d0);
+            }
+          });
 
-      node = d;
-      d3.event.stopPropagation();
+      node = d0;
+        if(d3.event) {
+            d3.event.stopPropagation();
+        }
     }
 
+    function adjustLabels(k, d0) {
+        vis.selectAll("text")
+            .style("opacity", function(d) {
+                if (d.children && d.children.length == 1)
+                    return 0;
+                else{
+                    if(d0.depth == 0){ // at root level
+                        if(d.depth == 1)
+                            return 1;
+                        else
+                            return 0;
+                    }
+                    else {
+                        if(d.children)
+                            return k * d.r > 70 ? 1 : 0;
+                        else
+                            return k * d.r > 10 ? 1 : 0;
+                    }
+                }
+            })
+            .text(function(d) {
+                return d.name;
+            })
+            .filter(function(d) {
+                d.tw = this.getComputedTextLength();
+                return (Math.PI*(k*d.r)/2) < d.tw;
+            })
+            .each(function(d) {
+                var proposedLabel = d.name.toString();
+//                console.log(d.name);
+                var proposedLabelArray = proposedLabel.split('');
+                while ((d.tw > (Math.PI*(k*d.r)/2) && proposedLabelArray.length)) {
+                // pull out 3 chars at a time to speed things up (one at a time is too slow)
+                    proposedLabelArray.pop();proposedLabelArray.pop(); proposedLabelArray.pop();
+                    if (proposedLabelArray.length===0) {
+                        proposedLabel = "";
+                    } else {
+                        proposedLabel = proposedLabelArray.join('') + "..."; // manually truncate with ellipsis
+                    }
+                    d3.select(this).text(proposedLabel);
+                    d.tw = this.getComputedTextLength();
+                }
+            });
+    }
 </script>

@@ -406,14 +406,14 @@ def generate_outtext(info, output_format, target_plot, Ctable = False):
 
     elif target_plot == 'BBL': # format for bubble  (change all 0 to 1)
         if output_format == 'json':
-            outdict = traverse_hier_dict_info(info, changeZeroToOne=True)
+            outdict = traverse_hier_dict_info(info, 0, changeZeroToOne=True)
             outtext = json.dumps(outdict, sort_keys=True, indent=4)
             return outtext
 
     elif target_plot == 'TMP': # format for TreeMap
         ## only capable for json
         if output_format == 'json':
-            outdict = traverse_hier_dict_info(info)
+            outdict = traverse_hier_dict_info(info, 0)
             outtext = json.dumps(outdict, sort_keys=True, indent=4)
             return outtext
 
@@ -475,31 +475,31 @@ def get_acisa_corridor_map(corridor_info):
     return acmap
 
 
-def traverse_hier_dict_info(node, changeZeroToOne=False):
+def traverse_hier_dict_info(node, depth, changeZeroToOne=False):
     """
     recursively traverse the hierarchical structure dict for BBL and TMP visualizations
     """
     if "speed" in node:
         # if node is a leaf, return its values
         if changeZeroToOne == True:
-            return {"speed": node["speed"] if node["speed"] > 0 else 1, "volume": node["volume"] if node["volume"] > 0 else 1, "corridor": node["corridor"]}
+            return {"speed": node["speed"] if node["speed"] > 0 else 1, "volume": node["volume"] if node["volume"] > 0 else 1, "corridor": node["corridor"], "depth": depth}
         else:
-            return {"speed": node["speed"], "volume": node["volume"], "corridor": node["corridor"]}
+            return {"speed": node["speed"], "volume": node["volume"], "corridor": node["corridor"], "depth": depth}
     else:
         # if node is not a leaf, collect its children
         children = []
         for k, v in node.items():
             if v != "root":
-                tmp = traverse_hier_dict_info(v, changeZeroToOne=changeZeroToOne)
+                tmp = traverse_hier_dict_info(v, depth + 1, changeZeroToOne=changeZeroToOne)
                 tmp["name"] = k
                 children.append(tmp)
 
     if "name" in node:
         # root
-        return {"name": " ", "children": children}
+        return {"name": " ", "children": children, "depth": depth}
     else:
         # other nodes
-        return {"children": children}
+        return {"children": children, "depth": depth}
 
 # testing command
 #print query_by_corridor_group('1', '2013-10-01', '2013-10-31')

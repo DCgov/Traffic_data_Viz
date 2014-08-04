@@ -32,6 +32,13 @@
           text-indent: 2px;
         }
 
+        #hoverinfo{
+            background-color: #ffffff;
+           	border: 2px solid;
+            border-radius: 5px;
+            padding: 5px 5px 5px 5px;
+        }
+
     </style>
 </head>
 <body>
@@ -73,6 +80,8 @@
 
 <div id="plotarea"></div>
 
+<div id="hoverinfo" style="visibility: hidden"></div>
+
 <script type="text/javascript">
     var corrnamelist = {};
     $.getJSON("http://10.41.20.61:10808/dataviz/datavizcgi.py?method=getcorridor", function(data) {
@@ -101,6 +110,10 @@
 
     var node = null;
 
+    $("body").click(function(){
+       $("#hoverinfo").css("visibility","hidden");
+    });
+
     function generate() {
         loading_indicator_trigger();
 
@@ -127,6 +140,9 @@
         console.log("load started.");
         console.log(query);
 
+        var dtop = $("#plotarea").position().top;
+        var dleft = $("#plotarea").position().left;
+
         d3.json(query, function (error, root) {
             node = div.datum(root).selectAll(".node")
               .data(treemap.nodes)
@@ -146,7 +162,28 @@
                                 return color(d.name);
                         }
                     })
-              .text(function(d) { return d.children ? null : d.name; });
+              .text(function(d) {
+                        if (Math.max(0, d.dx - 1) > 25 && Math.max(0, d.dy - 1) > 10) {
+                            return d.children ? null : d.name;
+                        }
+                        else
+                            return null;
+                    })
+              .on("mouseover", function(d) {
+                        //handle hover information
+                        htmlstr = d.name + "<br>Vol: " + d.volume + "<br>Speed: " + d.speed;
+                        if(d.corridor){
+                            htmlstr += "<br>Corridor: " + d.corridor;
+                        }
+                        var divtop = (parseFloat(d.x) + dleft).toString() + "px";
+                        var divleft = (parseFloat(d.y) + dtop).toString() + "px";
+                        $("#hoverinfo").html(htmlstr)
+                                       .css("visibility","visible")
+                                       .css("position","absolute")
+                                       .css("left", divtop)
+                                       .css("top", divleft);
+                    });
+//            .on("mouseleave", function(){ $("#hoverinfo").css("visibility","hidden"); });
 
             d3.selectAll("input").on("change", function change() {
 
@@ -168,13 +205,24 @@
 
                 var textfun;
                 // text layout scheme
-                if (selectedshowname === "acisa") { textfun = function(d) { return d.children ? null : d.name; }}
-                else if(selectedshowname === "corridor") { textfun = function(d) {
-                        if(d.corridor && d.corridor != "no"){
-                            return d.corridor;
-                        }
-                        else if(d.corridor == "no"){
+                if (selectedshowname === "acisa") { textfun = function(d) {
+                        if (Math.max(0, d.dx - 1) > 25 && Math.max(0, d.dy - 1) > 10) {
                             return d.children ? null : d.name;
+                        }
+                        else
+                            return null;
+                    }}
+                else if(selectedshowname === "corridor") { textfun = function(d) {
+                        if (Math.max(0, d.dx - 1) > 25 && Math.max(0, d.dy - 1) > 10) {
+                            if (d.corridor && d.corridor != "no") {
+                                return d.corridor;
+                            }
+                            else if (d.corridor == "no") {
+                                return d.children ? null : d.name;
+                            }
+                            else {
+                                return null;
+                            }
                         }
                         else{ return null;}
                     }
