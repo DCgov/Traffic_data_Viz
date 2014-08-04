@@ -9,6 +9,8 @@ examples:
 http://localhost:10808/dataviz/datavizcgi.py?method=query_by_corridor_group&target_plot=NZE&corridor_id=1&start_date=2013-10-01&end_date=2013-10-31
 http://localhost:10808/dataviz/datavizcgi.py?method=query_by_acisa&target_plot=NZE&acisa=2135&start_date=2013-10-01&end_date=2013-10-31
 http://localhost:10808/dataviz/datavizcgi.py?method=query_by_time_region&target_plot=BBL&start_date=2013-10-01&end_date=2013-10-31&dir=both
+http://localhost:10808/dataviz/datavizcgi.py?method=query_corridor_intersections&corridor_id=1&target_plot=SMX&start_date=2013-10-01&end_date=2013-10-02
+
 http://localhost:10808/dataviz/datavizcgi.py?method=getcorridor
 
 '''
@@ -55,6 +57,15 @@ elif method == 'query_by_time_region':
         print db_access.query_by_time_region(start_date, end_date, output_format='json', target_plot=target_plot)
     else:
         print db_access.query_by_time_region(start_date, end_date, direction=dir, output_format='json', target_plot=target_plot)
+
+elif method == 'query_corridor_intersections':
+    corridor_id = form.getvalue('corridor_id')
+    start_date = form.getvalue('start_date')
+    end_date = form.getvalue('end_date')
+    output_format = form.getvalue('output_format')
+    target_plot = form.getvalue('target_plot')
+    dir = form.getvalue('dir')
+    print db_access.query_corridor_intersections(corridor_id, start_date, end_date, direction=dir, target_plot=target_plot)
 
 elif method == 'getcorridor':
     print db_access.getcorridor()

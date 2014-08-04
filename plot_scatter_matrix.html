@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<head>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <script src="http://d3js.org/d3.v3.min.js"></script>
+    <script src="http://cdnjs.cloudflare.com/ajax/libs/d3/2.7.4/d3.layout.min.js"></script>
+    <script src="js/loading_indicator.js"></script>
+    <link rel="stylesheet" type="text/css" href="css/loading_indicator.css">
+    <style type="text/css">
+        body {
+            font: 12px sans-serif;
+        }
+        svg {
+          font: 10px sans-serif;
+          padding: 10px;
+        }
+
+        .axis,
+        .frame {
+          shape-rendering: crispEdges;
+        }
+
+        .axis line {
+          stroke: #ddd;
+        }
+
+        .axis path {
+          display: none;
+        }
+
+        .frame {
+          fill: none;
+          stroke: #aaa;
+        }
+
+        circle {
+          fill-opacity: .7;
+        }
+
+        circle.hidden {
+          fill: #ccc !important;
+        }
+
+        .extent {
+          fill: #000;
+          fill-opacity: .125;
+          stroke: #fff;
+        }
+
+    </style>
+</head>
+<body>
+
+<form>
+    <div id="cbox"></div>
+    Start_DateTime <i>(YYYY-MM-DD H:M:S)</i>: <input type="text" id="startdate" value="2013-10-01 00:00:00">
+    End_DateTime <i>(YYYY-MM-DD H:M:S)</i>: <input type="text" id="enddate" value="2013-10-02 00:00:00">
+    Direction:
+    <select id="dir">
+        <option value="all">all</option>
+        <option value="NS">N&S</option>
+        <option value="WE">W&E</option>
+        <option value="N">N</option>
+        <option value="S">S</option>
+        <option value="W">W</option>
+        <option value="E">E</option>
+        <option value="RL">RL</option>
+    </select>
+    <input type="button" value="Generate" onclick="generate()">
+</form>
+
+
+<p><i>This visualization takes a few seconds to process. The newest figure will be appended at the end of page.</i></p>
+<hr>
+
+<div id="plotarea"></div>
+
+<script>
+    function ui_add_corridor_selection() {
+        $.getJSON("http://10.41.20.61:10808/dataviz/datavizcgi.py?method=getcorridor", function(data) {
+            htmlstr = "Corridor/Intersection: ";
+            htmlstr += "<select id=\"target\">"
+            $.each(data, function(k, v) {
+                htmlstr += "<option value=\"" + k + "\">" + v['name'] + "</option>";
+//                for (acisa in v['intersections']) {
+//                    htmlstr += "<option value=\"#" + v['intersections'][acisa] + "\"> # " + v['intersections'][acisa] + "</option>";
+//                }
+            });
+            htmlstr += "</select>"
+//            htmlstr += "      <a href=\"#\" onclick='ui_add_freetext_ACISA()'>switch to free text input</a>";
+//            inputtype = "select";
+            $("#cbox").html(htmlstr);
+        });
+    }
+    ui_add_corridor_selection();
+</script>
+
+<script>
+var width = 1200,
+    size = 200,
+    padding = 21;
+
+var x = d3.scale.linear()
+    .range([padding / 2, size - padding / 2]);
+
+var y = d3.scale.linear()
+    .range([size - padding / 2, padding / 2]);
+
+var xAxis = d3.svg.axis()
+    .scale(x)
+    .orient("bottom")
+    .ticks(5);
+
+var yAxis = d3.svg.axis()
+    .scale(y)
+    .orient("left")
+    .ticks(5);
+
+var color = d3.scale.category10();
+
+function generate() {
+    var coi = $("#target").val();
+    var coiname = $("#target option:selected").text();
+    var stdate = $("#startdate").val();
+    var eddate = $("#enddate").val();
+    var dir = $("#dir").val();
+
+    var querystr = "http://10.41.20.61:10808/dataviz/datavizcgi.py?method=query_corridor_intersections&corridor_id=" + coi + "&target_plot=SMX&start_date=" + stdate + "&end_date=" + eddate + "&dir=" + dir;
+
+    console.log(querystr);
+    console.log("start loading");
+    $("#plotarea").empty();
+    loading_indicator_trigger();
+    d3.csv(querystr, function (error, data) {
+        var domainByTrait = {},
+                traits = d3.keys(data[0]).filter(function (d) {
+                    return d !== "phase" && d !== "acisa" && d !== "laneDir";
+                }),
+                n = traits.length;
+
+        traits.forEach(function (trait) {
+            domainByTrait[trait] = d3.extent(data, function (d) {
+//        return !isNaN(d[trait])&&d[trait] >= 0?d[trait]:null;
+                return d[trait] >= 0 ? +d[trait] : NaN;
+            }); // handle "NaN"
+        });
+
+        xAxis.tickSize(size * n);
+        yAxis.tickSize(-size * n);
+
+        var brush = d3.svg.brush()
+                .x(x)
+                .y(y)
+                .on("brushstart", brushstart)
+                .on("brush", brushmove)
+                .on("brushend", brushend);
+
+        var svg = d3.select("#plotarea").append("svg")
+                .attr("width", size * n + padding)
+                .attr("height", size * n + padding)
+                .append("g")
+                .attr("transform", "translate(" + padding + "," + padding / 2 + ")");
+
+        svg.selectAll(".x.axis")
+                .data(traits)
+                .enter().append("g")
+                .attr("class", "x axis")
+                .attr("transform", function (d, i) {
+                    return "translate(" + (n - i - 1) * size + ",0)";
+                })
+                .each(function (d) {
+                    x.domain(domainByTrait[d]);
+                    d3.select(this).call(xAxis);
+                });
+
+        svg.selectAll(".y.axis")
+                .data(traits)
+                .enter().append("g")
+                .attr("class", "y axis")
+                .attr("transform", function (d, i) {
+                    return "translate(0," + i * size + ")";
+                })
+                .each(function (d) {
+                    y.domain(domainByTrait[d]);
+                    d3.select(this).call(yAxis);
+                });
+
+        var cell = svg.selectAll(".cell")
+                .data(cross(traits, traits))
+                .enter().append("g")
+                .attr("class", "cell")
+                .attr("transform", function (d) {
+                    return "translate(" + (n - d.i - 1) * size + "," + d.j * size + ")";
+                })
+                .each(plot);
+
+        // Titles for the diagonal.
+        cell.filter(function (d) {
+            return d.i === d.j;
+        }).append("text")
+                .attr("x", padding)
+                .attr("y", padding)
+                .attr("dy", ".71em")
+                .text(function (d) {
+                    return d.x;
+                });
+
+        cell.call(brush);
+
+        function plot(p) {
+            var cell = d3.select(this);
+
+            x.domain(domainByTrait[p.x]);
+            y.domain(domainByTrait[p.y]);
+
+            cell.append("rect")
+                    .attr("class", "frame")
+                    .attr("x", padding / 2)
+                    .attr("y", padding / 2)
+                    .attr("width", size - padding)
+                    .attr("height", size - padding);
+
+            cell.selectAll("circle")
+                    .data(data)
+                    .enter().append("circle")
+                    .attr("cx", function (d) {
+                        return !isNaN(d[p.x]) && !isNaN(d[p.y]) && d[p.y] >= 0 && d[p.x] >= 0 ? +x(d[p.x]) : 0;
+                    })  // handle NaN
+                    .attr("cy", function (d) {
+                        return !isNaN(d[p.y]) && !isNaN(d[p.x]) && d[p.y] >= 0 && d[p.x] >= 0 ? +y(d[p.y]) : 0;
+                    })
+                    .attr("r", function (d) {
+                        return !isNaN(d[p.y]) && !isNaN(d[p.x]) && d[p.y] >= 0 && d[p.x] >= 0 ? 3 : 0;
+                    }) // handle invalid data
+                    .style("fill", function (d) {
+                        return color(d.phase);
+                    });
+        }
+
+        var brushCell;
+
+        // Clear the previously-active brush, if any.
+        function brushstart(p) {
+            if (brushCell !== this) {
+                d3.select(brushCell).call(brush.clear());
+                x.domain(domainByTrait[p.x]);
+                y.domain(domainByTrait[p.y]);
+                brushCell = this;
+            }
+        }
+
+        // Highlight the selected circles.
+        function brushmove(p) {
+            var e = brush.extent();
+            svg.selectAll("circle").classed("hidden", function (d) {
+                return e[0][0] > d[p.x] || d[p.x] > e[1][0]
+                        || e[0][1] > d[p.y] || d[p.y] > e[1][1];
+            });
+        }
+
+        // If the brush is empty, select all circles.
+        function brushend() {
+            if (brush.empty()) svg.selectAll(".hidden").classed("hidden", false);
+        }
+
+        function cross(a, b) {
+            var c = [], n = a.length, m = b.length, i, j;
+            for (i = -1; ++i < n;) for (j = -1; ++j < m;) c.push({x: a[i], i: i, y: b[j], j: j});
+            return c;
+        }
+
+        d3.select(self.frameElement).style("height", size * n + padding + 20 + "px");
+
+        loading_indicator_trigger();
+        console.log("finish loading");
+    });
+}
+
+</script>

@@ -119,6 +119,7 @@ def query_by_corridor_group(corridor_id, start_date, end_date, output_format='cs
         info[lanedr].append({'datetime': dt, 'speed': avgspd, 'vol': vol})
     #        print  dt, lanedr, vol, avgspd
 
+
     # dbCursor.execute(query_single)
 
     # singleInfo = {}
@@ -242,7 +243,6 @@ def query_by_time_region(start_date, end_date, direction='all', output_format='j
         if vol is None or avgspd is None:
             continue
         #
-
         if acisa in acmap:
             if acmap[acisa] not in info:
                 info[acmap[acisa]] = {}
@@ -276,6 +276,44 @@ def query_by_time_region(start_date, end_date, direction='all', output_format='j
 
     outtext = generate_outtext(info, output_format, target_plot)
     return outtext
+
+
+def query_corridor_intersections(corridor_id, start_date, end_date, direction='all', output_format='csv', target_plot='SMX'):
+    # load corridors
+    cor_data = load_corridors()
+    corr_acisas = ','.join('\'' + t + '\'' for t in cor_data[str(corridor_id)]['intersections'])
+
+    # query data
+    DBserver, DBname, UID, PWD, tblname = load_dbsetting_file(db_setting_path)
+    connStr = (r'DRIVER={SQL Server};SERVER=' +
+                DBserver + ';DATABASE=' + DBname + ';' +
+                'UID=' + UID + ';PWD=' + PWD)
+
+    conn = pyodbc.connect(connStr)
+
+    if target_plot == 'SMX':
+        # make query string
+        if direction == 'all':
+            query = "SELECT data_hour, acisa, laneDir, VolSum, avg_speed, occupancy FROM %s WHERE ACISA IN (%s) " % (tblname, corr_acisas) \
+                + "AND data_datetime between \'%s\' and \'%s\' ORDER BY laneDir, data_hour ASC" % (start_date, end_date)
+        elif direction == 'WE' or direction == 'NS':
+            dirstr = "laneDir in (\'W\',\'E\',\'w\',\'e\')" if direction == 'WE' else "laneDir in (\'N\',\'S\',\'n\',\'s\')"
+            query = "SELECT data_hour, acisa, laneDir, VolSum, avg_speed, occupancy FROM %s WHERE ACISA IN (%s) " % (tblname, corr_acisas) \
+                + "AND data_datetime between \'%s\' and \'%s\' AND %s ORDER BY laneDir, data_hour ASC" % (start_date, end_date, dirstr)
+        else:
+            query = "SELECT data_hour, acisa, laneDir, VolSum, avg_speed, occupancy FROM %s WHERE ACISA IN (%s) " % (tblname, corr_acisas) \
+                + "AND data_datetime between \'%s\' and \'%s\' AND laneDir=\'%s\' ORDER BY laneDir, data_hour ASC" % (start_date, end_date, direction)
+
+        dbCursor = conn.cursor()
+        dbCursor.execute(query)
+
+        info = []
+        for row in dbCursor:
+            (dhour, acisa, lanedr, vol, spd, occ) = tuple(row[0:6])
+            lanedr = lanedr.strip().upper()
+            info.append((dhour, acisa, lanedr, vol, spd, occ))
+        outtext = generate_outtext(info, output_format, target_plot)
+        return outtext
 
 
 def generate_outtext(info, output_format, target_plot, Ctable = False):
@@ -379,6 +417,25 @@ def generate_outtext(info, output_format, target_plot, Ctable = False):
             outtext = json.dumps(outdict, sort_keys=True, indent=4)
             return outtext
 
+    elif target_plot == 'SMX': # fromat for Scatter Matrix
+        if output_format == 'csv':
+            header = "phase,acisa,laneDir,volume,speed,occupancy"
+            outlist = list()
+            outlist.append(header)
+
+            for i in info:
+                hr = i[0] + 1
+                if hr >= 6 and hr < 12:
+                    hr_cate = "morning"
+                elif hr >= 12 and hr < 20:
+                    hr_cate = "afternoon"
+                else:
+                    hr_cate = "night"
+
+                outlist.append(hr_cate + ',' + ','.join(str(xx) for xx in i[1:]))
+            outtext = '\n'.join(xx for xx in outlist)
+            return outtext
+
 def getcorridor():
     """
     returns the json formatted corridor info string
@@ -449,3 +506,4 @@ def traverse_hier_dict_info(node, changeZeroToOne=False):
 # print query_by_acisa('2135', '2013-10-01', '2013-10-31')
 # print query_by_time_region('2013-10-01', '2013-10-31', direction='S')
 # print query_by_time_region('2013-10-01', '2013-10-31')
+# print query_corridor_intersections('1', '2013-10-01', '2013-10-02')Date
