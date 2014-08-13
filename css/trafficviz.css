@@ -26,8 +26,15 @@ circle.parent:hover {
 }
 
 circle.child {
-  pointer-events: none;
+  /*pointer-events: none;*/
+
 }
+
+circle.child:hover {
+  stroke: #ff7f0e;
+  stroke-width: .5px;
+}
+
 /*NZE*/
 .axis path,
 .axis line {

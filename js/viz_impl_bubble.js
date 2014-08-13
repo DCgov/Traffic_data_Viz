@@ -165,6 +165,9 @@ function bubble_viz(cgipath, targetdiv, sizeParams){
         var hoverDetailDiv = '<div id="bubblehoverdetail" style="visibility: hidden;background-color: #ffffff;border: 2px solid;border-radius: 5px;padding: 5px 5px 5px 5px;"></div>';
         $(hoverDetailDiv).appendTo(this.targetdivhash);
 
+        var dtop = $(this.targetdivhash).position().top;
+        var dleft = $(this.targetdivhash).position().left;
+
         // Get Data and plot SVG
         d3.json(query, function (data) {
             node = root = data;
@@ -186,7 +189,25 @@ function bubble_viz(cgipath, targetdiv, sizeParams){
                     })
                     .on("click", function (d) {
                         return zoom(node == d ? root : d);
-                    });
+                    })
+                    .on("mouseover", function (d){
+                        if(d == root){
+                            $("#bubblehoverdetail").css("visibility","hidden");
+                        }
+                        else {
+                            htmlstr = d.name + "<br>Vol: " + d.volume + "<br>Speed: " + parseFloat(d.speed.toFixed(2));
+                            if (d.corridor) {
+                                htmlstr += "<br>Corridor: " + d.corridor;
+                            }
+                            var divtop = (parseFloat(d.x) + dleft).toString() + "px";
+                            var divleft = (parseFloat(d.y) + dtop).toString() + "px";
+                            $("#bubblehoverdetail").html(htmlstr)
+                                .css("visibility", "visible")
+                                .css("position", "absolute")
+                                .css("left", divtop)
+                                .css("top", divleft);
+                        }
+                    });;
 
             var updateCounter = 0;
             vis.selectAll("text")
