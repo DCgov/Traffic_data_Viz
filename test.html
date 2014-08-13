@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title></title>
+</head>
+<body>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="http://cdnjs.cloudflare.com/ajax/libs/d3/2.7.4/d3.layout.min.js"></script>
+<link rel="stylesheet" type="text/css" href="css/loading_indicator.css">
+<link rel="stylesheet" type="text/css" href="css/trafficviz.css">
+<script type="text/javascript" src="js/trafficviz.js"></script>
+<script>
+     function show_TreeMAP() {
+        var sizeParams = {
+            width: '1000',
+            height: '400' };
+        var treemap1 = new treemap_viz("http://10.41.20.61:10808/dataviz/datavizcgi.py", "plotarea", sizeParams);
+        var params = {
+            TimeStart: '2013-10-01 00:00:00',
+            TimeEnd: '2013-10-02 00:00:00',
+            Direction: 'N'
+        };
+        treemap1.setParams(params);
+        treemap1.generate();
+    }
+     function show_Bubble() {
+        var sizeParams = {
+            width: '1000',
+            height: '600',
+            radius: '550'};
+        var bubble1 = new bubble_viz("http://10.41.20.61:10808/dataviz/datavizcgi.py", "plotarea", sizeParams);
+        var params = {
+            TimeStart: '2013-10-01 00:00:00',
+            TimeEnd: '2013-10-02 00:00:00',
+            Direction: 'N'
+        };
+        bubble1.setParams(params);
+        bubble1.generate();
+    }
+     function show_NZE() {
+        var sizeParams = {
+            width: '600',
+            height: '400'
+        };
+        var nze1 = new nze_viz("http://10.41.20.61:10808/dataviz/datavizcgi.py", "plotarea", sizeParams);
+        var params = {
+            DateStart: '2013-10-01',
+            DateEnd: '2013-10-30',
+            Corridor: 1,
+            CorridorName: 'NY AVE',
+            Direction: 'N'
+        };
+        nze1.setParams(params);
+        nze1.generate();
+    }
+</script>
+<input type="button" onclick="show_TreeMAP()" value="TreeMAP">
+<input type="button" onclick="show_Bubble()" value="Bubble">
+<input type="button" onclick="show_NZE()" value="NZE">
+<div id="plotarea"></div>
+</body>
+</html>
